@@ -1,0 +1,3 @@
+# Helm artifacts used for local testing only, can break argocd.
+*.tgz
+Chart.lock

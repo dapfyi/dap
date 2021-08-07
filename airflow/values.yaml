@@ -1,0 +1,22 @@
+airflow:
+  defaultAirflowTag: latest
+  airflowVersion: 2.1.2
+  executor: KubernetesExecutor
+  migrateDatabaseJob:
+    jobAnnotations:
+      argocd.argoproj.io/hook: Skip
+  dags:
+    gitSync:
+      subPath: airflow/dags
+  images:
+    airflow:
+      pullPolicy: Always
+  webserver:
+    defaultUser:
+      enabled: false
+  config:
+    webserver:
+      expose_config: 'True'
+    logging:
+      remote_logging: 'True'
+

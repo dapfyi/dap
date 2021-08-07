@@ -1,0 +1,21 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "ecr:CreateRepository",
+                "s3:ListBucket",
+                "s3:CreateBucket",
+                "s3:GetObject",
+                "s3:DeleteObject",
+                "s3:PutObject"
+            ],
+            "Resource": [
+                "arn:aws:ecr:$REGION:$AWS_ACCOUNT:repository/$new-blake/*",
+                "arn:aws:s3:::$new-blake-$REGION-*-$AWS_ACCOUNT",
+                "arn:aws:s3:::$new-blake-$REGION-*-$AWS_ACCOUNT/*"
+            ],
+            "Effect": "Allow"
+        }
+    ]
+}

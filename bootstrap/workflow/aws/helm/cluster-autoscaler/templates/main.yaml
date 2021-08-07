@@ -141,7 +141,7 @@ spec:
               memory: 500Mi
             requests:
               cpu: 100m
-              memory: 500Mi
+              memory: 300Mi
           command:
             - ./cluster-autoscaler
             - --v=4
