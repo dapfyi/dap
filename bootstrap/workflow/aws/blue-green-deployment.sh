@@ -80,6 +80,7 @@ cluster_definition="
     minSize: 0
     maxSize: 3
     iam: $policies
+    volumeSize: 8
   - name: xlarge-spot-a
     availabilityZones: ["$REGION"a]
     instanceTypes: ['m5.xlarge', 'm5d.xlarge']
@@ -88,6 +89,7 @@ cluster_definition="
     minSize: 0
     maxSize: 2
     iam: $policies
+    volumeSize: 8
 "
 
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run

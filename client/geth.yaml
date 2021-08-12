@@ -1,0 +1,260 @@
+# Run command below to deploy geth. Note: keep the same aws cli default region configured across blake modules.
+# aws cloudformation create-stack --stack-name blake-geth --template-body file://geth.yaml --capabilities CAPABILITY_IAM
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  Tag:
+    Type: String
+    Default: bgeth-v0
+  GethBuild:
+    Type: String
+    Default: geth-alltools-linux-amd64-1.10.7-12f0ff40
+  Image:
+    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2'
+  InstanceSize:
+    Type: String
+    Default: large
+    AllowedValues:
+      - large
+      - xlarge
+  HotVolumeSize:
+    Type: Number
+    Default: 200
+  ColdVolumeSize:
+    Type: Number
+    Default: 300
+Resources:
+  ListenerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${Tag}-listener
+      GroupDescription: !Sub ${Tag}-listener
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 30303
+          IpProtocol: tcp
+          ToPort: 30303
+  DiscoverySG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${Tag}-discovery
+      GroupDescription: !Sub ${Tag}-discovery
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          FromPort: 30303
+          IpProtocol: udp
+          ToPort: 30303
+  WebSocketSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${Tag}-ws
+      GroupDescription: !Sub ${Tag}-ws
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !GetAtt SourceSG.GroupId
+          FromPort: 8546
+          IpProtocol: tcp
+          ToPort: 8546
+  # Instances with this security group attached will be authorized to reach Geth WebSocket. 
+  SourceSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${Tag}-source
+      GroupDescription: !Sub ${Tag}-source
+  SpotFleet: 
+    Type: AWS::EC2::SpotFleet
+    Properties:
+      SpotFleetRequestConfigData:
+        AllocationStrategy: lowestPrice
+        InstanceInterruptionBehavior: stop
+        TargetCapacity: 1
+        IamFleetRole: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/spotfleet.amazonaws.com/AWSServiceRoleForEC2SpotFleet
+        LaunchTemplateConfigs:
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !Ref LaunchTemplate
+              Version: !GetAtt LaunchTemplate.LatestVersionNumber
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !Ref LaunchTemplate
+              Version: !GetAtt LaunchTemplate.LatestVersionNumber
+            Overrides:
+              - InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !Ref LaunchTemplate
+              Version: !GetAtt LaunchTemplate.LatestVersionNumber
+            Overrides:
+              - InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !Ref LaunchTemplate
+              Version: !GetAtt LaunchTemplate.LatestVersionNumber
+            Overrides:
+              - InstanceType: !Join ['', [m5dn., !Ref InstanceSize]]
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        ImageId: !Ref Image
+        InstanceType: !Join ['', [m5., !Ref InstanceSize]]
+        Placement:
+          AvailabilityZone: !Sub ${AWS::Region}a
+        SecurityGroupIds:
+          - !GetAtt ListenerSG.GroupId
+          - !GetAtt DiscoverySG.GroupId
+          - !GetAtt WebSocketSG.GroupId
+        BlockDeviceMappings:
+          - DeviceName: /dev/sdf
+            Ebs:
+              VolumeType: gp3
+              VolumeSize: !Ref HotVolumeSize
+              DeleteOnTermination: true
+          - DeviceName: /dev/sdg
+            Ebs:
+              VolumeType: sc1
+              VolumeSize: !Ref ColdVolumeSize
+              DeleteOnTermination: true
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: !Ref Tag
+        UserData:
+          Fn::Base64: !Sub |
+            Content-Type: multipart/mixed; boundary="//"
+            MIME-Version: 1.0
+            
+            --//
+            Content-Type: text/cloud-config; charset="us-ascii"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 7bit
+            Content-Disposition: attachment; filename="cloud-config.txt"
+            
+            #cloud-config
+            cloud_final_modules:
+            - [scripts-user, always]
+            
+            --//
+            Content-Type: text/x-shellscript; charset="us-ascii"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 7bit
+            Content-Disposition: attachment; filename="userdata.txt"
+            
+            #!/bin/bash
+            /opt/aws/bin/cfn-init -s ${AWS::StackName} -r InstanceProfile --region ${AWS::Region} -c client
+            --//--
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ec2.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref ManagedPolicy
+  # Allow connection through Session Manager (aws api).
+  ManagedPolicy: 
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:UpdateInstanceInformation
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+            Resource:
+              - '*'
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          client:
+            - bootstrap
+        bootstrap:
+          files:
+            /tmp/bootstrap/mount-volumes.sh:
+              content: |
+                #!/bin/bash
+                set -eux
+                exec >> /var/log/bootstrap.log 2>&1
+
+                hot_device=`readlink -f /dev/sdf`
+                cold_device=`readlink -f /dev/sdg`
+
+                for device in $hot_device $cold_device; do
+                    # If output isn't more informative than "$device: data", there is no file system on the device.
+                    if file -s $device | grep -q '^'$device': data$'; then /sbin/mkfs.xfs $device; fi
+                done
+
+                mkdir -p /mnt/geth /mnt/freezer
+                mount $hot_device /mnt/geth
+                mount $cold_device /mnt/freezer
+              mode: "000755"
+            /tmp/bootstrap/download-geth.sh:
+              content: |
+                #!/bin/bash
+                set -eux
+                exec >> /var/log/bootstrap.log 2>&1
+
+                archive_link=https://gethstore.blob.core.windows.net/builds/$BUILD_ARCHIVE
+                curl $archive_link -O
+                curl $archive_link.asc -O
+
+                gpg --keyserver hkp://keyserver.ubuntu.com --recv-keys 9BA28146
+                gpg --verify $BUILD_ARCHIVE.asc
+
+                tar xzf $BUILD_ARCHIVE -C /usr/local/bin
+              mode: "000755"
+            /etc/systemd/system/geth.sh:
+              content: !Sub |
+                #!/bin/bash
+                /usr/local/bin/${GethBuild}/geth \
+                    --datadir /mnt/geth \
+                    --datadir.ancient /mnt/freezer \
+                    --ws \
+                    --ws.api eth \
+                    --ws.origins '*'
+                # ws access controlled at security group level
+              mode: "000755"
+            /etc/systemd/system/geth.service:
+              content: |
+                [Unit]
+                Description=Geth Node
+                After=network.target
+                [Service]
+                ExecStart=/etc/systemd/system/geth.sh
+                Restart=always
+                RestartSec=5s
+              mode: "000644"
+            /etc/profile.d/env.sh:
+              content: !Sub |
+                export PATH=$PATH:/usr/local/bin/${GethBuild}
+              mode: "000755"
+          commands:
+            00_mount_volumes:
+              command: "/tmp/bootstrap/mount-volumes.sh"
+            01_download_geth:
+              test: !Sub "test ! -d /usr/local/bin/${GethBuild}"
+              command: "/tmp/bootstrap/download-geth.sh"
+              env:
+                BUILD_ARCHIVE: !Sub "${GethBuild}.tar.gz"
+            02_start:
+              command: |
+                systemctl daemon-reload
+                systemctl enable geth --now
+Outputs:
+  SourceSG:
+    Value: !GetAtt SourceSG.GroupId
+    Export:
+      Name: !Sub ${Tag}-source-sg
+

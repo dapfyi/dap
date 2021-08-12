@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-aws-setup
+  name: {{ .Release.Name }}-aws-dependency
   annotations:
     helm.sh/hook: pre-install
     helm.sh/hook-weight: "-99"
@@ -9,33 +9,33 @@ metadata:
 spec:
   template:
     metadata:
-      name: {{ .Release.Name }}-aws-setup
+      name: {{ .Release.Name }}-aws-dependency
     spec:
       restartPolicy: Never
       containers:
-      - name: {{ .Release.Name }}-aws-setup
+      - name: {{ .Release.Name }}-aws-dependency
         image: amazon/aws-cli
         command: ["/bin/bash"]
-        args: ["/mnt/aws-setup.sh"]
+        args: ["/mnt/aws-dependency.sh"]
         volumeMounts:
         - name: script
           mountPath: /mnt
       volumes:
       - name: script
         configMap:
-          name: {{ .Release.Name }}-aws-setup
+          name: {{ .Release.Name }}-aws-dependency
           defaultMode: 0777
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-aws-setup
+  name: {{ .Release.Name }}-aws-dependency
   annotations:
     helm.sh/hook: pre-install
     helm.sh/hook-weight: "-99"
     helm.sh/hook-delete-policy: before-hook-creation
 data:
-  aws-setup.sh: |
+  aws-dependency.sh: |
 
     repo_name={{ .Values.clusterName }}/airflow 
     aws ecr describe-repositories --repository-names $repo_name ||
