@@ -1,16 +1,13 @@
 # Run command below to deploy geth. Note: keep the same aws cli default region configured across blake modules.
-# aws cloudformation create-stack --stack-name blake-geth --template-body file://geth.yaml --capabilities CAPABILITY_IAM
+# aws cloudformation create-stack --stack-name bgeth-v0 --template-body file://geth.yaml --capabilities CAPABILITY_IAM
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
-  Tag:
-    Type: String
-    Default: bgeth-v0
   GethBuild:
     Type: String
     Default: geth-alltools-linux-amd64-1.10.7-12f0ff40
   Image:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2'
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2
   InstanceSize:
     Type: String
     Default: large
@@ -24,42 +21,114 @@ Parameters:
     Type: Number
     Default: 300
 Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 192.168.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags: 
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/VPC
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/InternetGateway
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  SubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 192.168.0.0/17
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/SubnetA
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: kubernetes.io/cluster/blue-blake
+          Value: shared
+        - Key: kubernetes.io/cluster/green-blake
+          Value: shared
+  SubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 192.168.128.0/17
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/SubnetB
+        - Key: kubernetes.io/role/elb
+          Value: 1
+        - Key: kubernetes.io/cluster/blue-blake
+          Value: shared
+        - Key: kubernetes.io/cluster/green-blake
+          Value: shared
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+      Tags: 
+        - Key: Name
+          Value: !Sub ${AWS::StackName}/RouteTable 
+      VpcId: !Ref VPC
+  SubnetARouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetA
+  SubnetBRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: 
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref SubnetB
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
   ListenerSG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupName: !Sub ${Tag}-listener
-      GroupDescription: !Sub ${Tag}-listener
+      GroupName: !Sub ${AWS::StackName}-listener
+      GroupDescription: !Sub ${AWS::StackName}-listener
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 30303
           IpProtocol: tcp
           ToPort: 30303
+      VpcId: !Ref VPC
   DiscoverySG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupName: !Sub ${Tag}-discovery
-      GroupDescription: !Sub ${Tag}-discovery
+      GroupName: !Sub ${AWS::StackName}-discovery
+      GroupDescription: !Sub ${AWS::StackName}-discovery
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
           FromPort: 30303
           IpProtocol: udp
           ToPort: 30303
+      VpcId: !Ref VPC
   WebSocketSG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
-      GroupName: !Sub ${Tag}-ws
-      GroupDescription: !Sub ${Tag}-ws
+      GroupName: !Sub ${AWS::StackName}-ws
+      GroupDescription: !Sub ${AWS::StackName}-ws
       SecurityGroupIngress:
-        - SourceSecurityGroupId: !GetAtt SourceSG.GroupId
+        - CidrIp: 192.168.0.0/17
           FromPort: 8546
           IpProtocol: tcp
           ToPort: 8546
-  # Instances with this security group attached will be authorized to reach Geth WebSocket. 
-  SourceSG:
-    Type: AWS::EC2::SecurityGroup
-    Properties: 
-      GroupName: !Sub ${Tag}-source
-      GroupDescription: !Sub ${Tag}-source
+      VpcId: !Ref VPC
   SpotFleet: 
     Type: AWS::EC2::SpotFleet
     Properties:
@@ -72,21 +141,26 @@ Resources:
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
+            Overrides:
+              - SubnetId: !Ref SubnetA
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
+              - SubnetId: !Ref SubnetA
+                InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
+              - SubnetId: !Ref SubnetA
+                InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - InstanceType: !Join ['', [m5dn., !Ref InstanceSize]]
+              - SubnetId: !Ref SubnetA
+                InstanceType: !Join ['', [m5dn., !Ref InstanceSize]]
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -95,8 +169,6 @@ Resources:
           Arn: !GetAtt InstanceProfile.Arn
         ImageId: !Ref Image
         InstanceType: !Join ['', [m5., !Ref InstanceSize]]
-        Placement:
-          AvailabilityZone: !Sub ${AWS::Region}a
         SecurityGroupIds:
           - !GetAtt ListenerSG.GroupId
           - !GetAtt DiscoverySG.GroupId
@@ -116,7 +188,7 @@ Resources:
           - ResourceType: instance
             Tags:
               - Key: Name
-                Value: !Ref Tag
+                Value: !Ref AWS::StackName
         UserData:
           Fn::Base64: !Sub |
             Content-Type: multipart/mixed; boundary="//"
@@ -169,7 +241,7 @@ Resources:
               - ssmmessages:OpenControlChannel
               - ssmmessages:OpenDataChannel
             Resource:
-              - '*'
+              - "*"
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
@@ -223,8 +295,7 @@ Resources:
                     --datadir.ancient /mnt/freezer \
                     --ws \
                     --ws.api eth \
-                    --ws.origins '*'
-                # ws access controlled at security group level
+                    --ws.addr 0.0.0.0
               mode: "000755"
             /etc/systemd/system/geth.service:
               content: |
@@ -253,8 +324,12 @@ Resources:
                 systemctl daemon-reload
                 systemctl enable geth --now
 Outputs:
-  SourceSG:
-    Value: !GetAtt SourceSG.GroupId
+  SubnetA:
+    Value: !Ref SubnetA
     Export:
-      Name: !Sub ${Tag}-source-sg
+      Name: !Sub ${AWS::StackName}-subnet-a
+  SubnetB:
+    Value: !Ref SubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-subnet-b
 

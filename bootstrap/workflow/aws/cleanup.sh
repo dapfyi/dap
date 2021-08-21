@@ -1,5 +1,4 @@
 #!/bin/bash
-set -eo pipefail
 source aws/lib/env.sh
 
 if [ -z $1 ]; then

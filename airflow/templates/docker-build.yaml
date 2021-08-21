@@ -40,9 +40,10 @@ data:
     RUN echo "AUTH_ROLE_PUBLIC = 'Admin'" >> /opt/airflow/webserver_config.py
 
     USER root
-    RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+    RUN apt-get update && apt-get install -y git gcc && rm -rf /var/lib/apt/lists/*
 
     USER airflow
+    RUN pip install web3
     RUN git clone \
             --single-branch \
             --depth 1 \

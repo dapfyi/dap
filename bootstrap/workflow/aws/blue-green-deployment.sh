@@ -4,6 +4,13 @@ set -euo pipefail
 source aws/lib/env.sh
 source tests.sh
 
+ETHEREUM_CLIENT=bgeth-v0
+eth_net_param=`aws cloudformation list-exports --query Exports[*].[Name,Value] --output text | 
+    grep ^$ETHEREUM_CLIENT`
+
+subnet_a=`echo "$eth_net_param" | awk '$1~/subnet-a$/{print $2}'`
+subnet_b=`echo "$eth_net_param" | awk '$1~/subnet-b$/{print $2}'`
+
 
 ## Determine new cluster color according to blue-green deployment workflow.
 clusters=`eksctl get cluster`
@@ -60,36 +67,42 @@ policies="
 
 cluster_definition="
   apiVersion: eksctl.io/v1alpha5
-  kind: ClusterConfig
-  
+  kind: ClusterConfig  
   metadata:
     name: $new-blake
     region: $REGION
-  availabilityZones: ["$REGION"a, "$REGION"b]
   iam:
     withOIDC: true
 
+  vpc:
+    subnets:
+      public:
+        subnet-a:
+          id: $subnet_a
+        subnet-b:
+          id: $subnet_b
+
   managedNodeGroups:
   - name: large-spot-a
-    availabilityZones: ["$REGION"a]
+    subnets: [$subnet_a]
     # ARM64 architecture, e.g. m6g and m6gd instances, not supported in bitnami charts, yet: 
     # see https://github.com/bitnami/charts/issues/7040.
     instanceTypes: ['m5.large', 'm5d.large']
+    volumeSize: 8
     spot: true
     desiredCapacity: 1
     minSize: 0
     maxSize: 3
     iam: $policies
-    volumeSize: 8
   - name: xlarge-spot-a
-    availabilityZones: ["$REGION"a]
+    subnets: [$subnet_a]
     instanceTypes: ['m5.xlarge', 'm5d.xlarge']
+    volumeSize: 8
     spot: true
     desiredCapacity: 0
     minSize: 0
     maxSize: 2
     iam: $policies
-    volumeSize: 8
 "
 
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run
@@ -153,8 +166,8 @@ apply_argo () {
 
 }
 
-# retry in case of failed client connection on large k8s manifest
-apply_argo || apply_argo
+# Back off and retry in case of failed client connection on large k8s manifest.
+apply_argo || { sleep 5 && apply_argo; }
 
 kubectl patch deploy argocd-server \
     -n argocd \
