@@ -1,7 +1,9 @@
 airflow:
   defaultAirflowTag: latest
-  airflowVersion: 2.1.2
   executor: KubernetesExecutor
+  extraEnvFrom: |
+    - configMapRef:
+        name: env 
   migrateDatabaseJob:
     jobAnnotations:
       argocd.argoproj.io/hook: Skip
@@ -16,7 +18,8 @@ airflow:
       enabled: false
   postgresql:
     persistence:
-      enabled: false
+      enabled: true
+      existingClaim: postgresql-0
   config:
     webserver:
       expose_config: 'True'

@@ -14,6 +14,6 @@ fi
 
 eksctl delete cluster --name $cluster
 
-aws iam delete-policy --policy-arn arn:aws:iam::$AWS_ACCOUNT:policy/$cluster-node
-aws iam delete-policy --policy-arn arn:aws:iam::$AWS_ACCOUNT:policy/$cluster-cluster-autoscaler
+aws iam delete-policy --policy-arn arn:aws:iam::$ACCOUNT:policy/$cluster-node
+aws iam delete-policy --policy-arn arn:aws:iam::$ACCOUNT:policy/$cluster-cluster-autoscaler
 

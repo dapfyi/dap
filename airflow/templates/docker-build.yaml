@@ -4,7 +4,7 @@ metadata:
   name: {{ .Release.Name }}-image-build
   annotations:
     helm.sh/hook: pre-install
-    helm.sh/hook-weight: "-98"
+    helm.sh/hook-weight: "-99"
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
   template:
@@ -32,24 +32,16 @@ metadata:
   name: {{ .Release.Name }}-dockerfile
   annotations:
     helm.sh/hook: pre-install
-    helm.sh/hook-weight: "-98"
+    helm.sh/hook-weight: "-99"
     helm.sh/hook-delete-policy: before-hook-creation
 data:
   Dockerfile: |
-    FROM apache/airflow:{{ .Values.airflow.airflowVersion }}
-    RUN echo "AUTH_ROLE_PUBLIC = 'Admin'" >> /opt/airflow/webserver_config.py
+    FROM {{ .Values.airflow.defaultAirflowRepository }}:base
 
-    USER root
-    RUN apt-get update && apt-get install -y git gcc && rm -rf /var/lib/apt/lists/*
-
-    USER airflow
-    RUN pip install web3
     RUN git clone \
             --single-branch \
             --depth 1 \
             --branch {{ .Values.airflow.dags.gitSync.branch }} \
             {{ .Values.airflow.dags.gitSync.repo }} && \
         cp -r blake/{{ .Values.airflow.dags.gitSync.subPath }}/* dags
-
-    ENV AWS_DEFAULT_REGION {{ .Values.region }}
 

@@ -3,17 +3,27 @@
     "Statement": [
         {
             "Action": [
-                "ecr:CreateRepository",
                 "s3:ListBucket",
-                "s3:CreateBucket",
-                "s3:GetObject",
+                "s3:GetObject"
+            ],
+            "Resource": [
+                "arn:aws:s3:::*-blake-$REGION-*-$ACCOUNT",
+                "arn:aws:s3:::*-blake-$REGION-*-$ACCOUNT/*"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:PutImage",
                 "s3:DeleteObject",
                 "s3:PutObject"
             ],
             "Resource": [
-                "arn:aws:ecr:$REGION:$AWS_ACCOUNT:repository/$new-blake/*",
-                "arn:aws:s3:::$new-blake-$REGION-*-$AWS_ACCOUNT",
-                "arn:aws:s3:::$new-blake-$REGION-*-$AWS_ACCOUNT/*"
+                "arn:aws:ecr:$REGION:$ACCOUNT:repository/$new-blake/*",
+                "arn:aws:s3:::$new-blake-$REGION-*-$ACCOUNT/*"
             ],
             "Effect": "Allow"
         }

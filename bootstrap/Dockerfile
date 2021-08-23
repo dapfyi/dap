@@ -11,11 +11,13 @@ RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zi
     unzip awscliv2.zip && ./aws/install && rm awscliv2.zip
 ENV AWS_PAGER=
 
-RUN curl -L https://github.com/weaveworks/eksctl/releases/download/$EKSCTL_VERSION/eksctl_`uname -s`_amd64.tar.gz | tar xz -C /usr/local/bin && \
-    curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/$KUBECTL_VERSION/bin/linux/amd64/kubectl && \
+RUN curl -L https://github.com/weaveworks/eksctl/releases/download/$EKSCTL_VERSION/eksctl_`uname -s`_amd64.tar.gz | \
+    tar xz -C /usr/local/bin
+
+RUN curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/$KUBECTL_VERSION/bin/linux/amd64/kubectl && \
     curl -o kubectl.sha256 https://amazon-eks.s3.us-west-2.amazonaws.com/$KUBECTL_VERSION/bin/linux/amd64/kubectl.sha256 && \
     [ `openssl sha1 -sha256 kubectl | awk '{print $2}'` = `awk '{print $1}' kubectl.sha256` ] && echo 'SHA-256 sums OK' || exit 1 && \
-    chmod +x kubectl && mv kubectl /usr/local/bin && rm kubectl.sha256
+    chmod +x kubectl && mv kubectl /usr/local/bin
 
 RUN curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 

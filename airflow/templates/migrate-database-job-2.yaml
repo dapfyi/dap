@@ -62,10 +62,7 @@ spec:
           {{- else }}
           args: ["bash", "-c", "airflow upgradedb"]
           {{- end }}
-          envFrom:
-          {{- include "call-nested" (list . "airflow" "custom_airflow_environment_from") | default "\n  []" | indent 10 }}
           env:
-          {{- include "call-nested" (list . "airflow" "custom_airflow_environment") | indent 10 }}
           {{- include "call-nested" (list . "airflow" "standard_airflow_environment") | indent 10 }}
           volumeMounts:
             - name: config

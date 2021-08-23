@@ -20,6 +20,7 @@ if echo $clusters | egrep -q 'No clusters? found'; then
     echo "BLAKE ~ no cluster found"
     old=none
     export new=blue
+    other=green
 
 elif [ `echo "$clusters" | egrep 'blue-blake|green-blake' | wc -l` -gt 1 ]; then
 
@@ -31,12 +32,14 @@ elif echo $clusters | grep -q blue-blake; then
     echo "BLAKE ~ blue cluster found"
     old=blue
     export new=green
+    other=$old
 
 elif echo $clusters | grep -q green-blake; then
 
     echo "BLAKE ~ green cluster found"
     old=green
     export new=blue
+    other=$old
 
 elif [ -z $new ]; then
 
@@ -54,18 +57,20 @@ cat aws/iam/node-policy.json | envsubst |
     aws iam create-policy --policy-name $new-blake-node --policy-document file:///dev/stdin
 
 policies="
+
       attachPolicyARNs:
         - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess
-        - arn:aws:iam::$AWS_ACCOUNT:policy/$new-blake-node
+        - arn:aws:iam::$ACCOUNT:policy/$new-blake-node
       withAddonPolicies:
         autoScaler: true
-        imageBuilder: true
+
 "
 
 cluster_definition="
+
   apiVersion: eksctl.io/v1alpha5
   kind: ClusterConfig  
   metadata:
@@ -103,10 +108,25 @@ cluster_definition="
     minSize: 0
     maxSize: 2
     iam: $policies
+
 "
 
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin
+
+# Create global variables.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: env
+  namespace: default
+data:
+  ETHEREUM_CLIENT: $ETHEREUM_CLIENT
+  SUBNET_A: $subnet_a
+  DATA_BUCKET: $new-blake-$REGION-data-$ACCOUNT
+  OTHER_DATA_BUCKET: $other-blake-$REGION-data-$ACCOUNT
+EOF
 
 
 ## Deploy cluster autoscaler.
@@ -120,7 +140,7 @@ eksctl create iamserviceaccount \
     --cluster=$new-blake \
     --namespace=kube-system \
     --name=cluster-autoscaler \
-    --attach-policy-arn=arn:aws:iam::$AWS_ACCOUNT:policy/$new-blake-cluster-autoscaler \
+    --attach-policy-arn=arn:aws:iam::$ACCOUNT:policy/$new-blake-cluster-autoscaler \
     --override-existing-serviceaccounts \
     --approve
 
@@ -166,7 +186,7 @@ apply_argo () {
 
 }
 
-# Back off and retry in case of failed client connection on large k8s manifest.
+# Back off and retry in case of failed client connection during large manifest configuration.
 apply_argo || { sleep 5 && apply_argo; }
 
 kubectl patch deploy argocd-server \
