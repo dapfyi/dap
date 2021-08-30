@@ -127,10 +127,14 @@ data:
     FROM apache/airflow:$AIRFLOW_VERSION
 
     USER root
-    RUN apt-get update && apt-get install -y git gcc && rm -rf /var/lib/apt/lists/*
+    RUN apt-get update && \
+        apt-get install -y git gcc vim && \
+        rm -rf /var/lib/apt/lists/*
 
     USER airflow
-    RUN pip install web3
+    RUN pip install web3 pyarrow s3fs mmh3
+    RUN git clone --single-branch --depth 1 \
+        --branch main https://github.com/Uniswap/uniswap-v3-subgraph.git
     RUN echo "AUTH_ROLE_PUBLIC = 'Admin'" >> /opt/airflow/webserver_config.py
 
     ENV AWS_DEFAULT_REGION $REGION

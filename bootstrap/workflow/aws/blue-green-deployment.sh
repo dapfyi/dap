@@ -93,7 +93,8 @@ cluster_definition="
     # ARM64 architecture, e.g. m6g and m6gd instances, not supported in bitnami charts, yet: 
     # see https://github.com/bitnami/charts/issues/7040.
     instanceTypes: ['m5.large', 'm5d.large']
-    volumeSize: 8
+    # keep >= 16: NodeHasDiskPressure at 8 due to Airflow worker pullPolicy
+    volumeSize: 16
     spot: true
     desiredCapacity: 1
     minSize: 0
@@ -102,7 +103,7 @@ cluster_definition="
   - name: xlarge-spot-a
     subnets: [$subnet_a]
     instanceTypes: ['m5.xlarge', 'm5d.xlarge']
-    volumeSize: 8
+    volumeSize: 16
     spot: true
     desiredCapacity: 0
     minSize: 0

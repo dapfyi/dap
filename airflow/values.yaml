@@ -25,4 +25,7 @@ airflow:
       expose_config: 'True'
     logging:
       remote_logging: 'True'
+    core:
+      store_dag_code: 'False'
+      dagbag_import_timeout: 60.0
 

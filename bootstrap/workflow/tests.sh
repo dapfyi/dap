@@ -29,6 +29,7 @@ scale_out_test () {
         ((timeout+=10))
     done
 
+    echo "BLAKE ~ Autoscaler Test: evaluating number of nodes."
     [ `kubectl get nodes -o name | wc -l` -gt $live_nodes ]
     local exit_status=$?
     echo "BLAKE ~ Autoscaler Test: $exit_status exit code in $timeout seconds."
