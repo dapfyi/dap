@@ -4,22 +4,35 @@ AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   GethBuild:
     Type: String
-    Default: geth-alltools-linux-amd64-1.10.7-12f0ff40
+    Default: geth-alltools-linux-amd64-1.10.8-26675454
   Image:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2
   InstanceSize:
     Type: String
-    Default: large
+    Default: xlarge
     AllowedValues:
-      - large
       - xlarge
+      - large
   HotVolumeSize:
     Type: Number
     Default: 200
   ColdVolumeSize:
     Type: Number
     Default: 300
+  ColdVolumeType:
+    Type: String
+    Default: gp3
+    AllowedValues:
+      - gp3
+      - sc1
+  NetRestrict:
+    Type: String
+    Default: false
+    Description: allow peers from AWS networks only to cut Data Transfer costs (unsecure)
+    AllowedValues:
+      - true
+      - false
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -118,6 +131,17 @@ Resources:
           IpProtocol: udp
           ToPort: 30303
       VpcId: !Ref VPC
+  HttpSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${AWS::StackName}-http
+      GroupDescription: !Sub ${AWS::StackName}-http
+      SecurityGroupIngress:
+        - CidrIp: 192.168.0.0/17
+          FromPort: 8545
+          IpProtocol: tcp
+          ToPort: 8545
+      VpcId: !Ref VPC
   WebSocketSG:
     Type: AWS::EC2::SecurityGroup
     Properties: 
@@ -149,18 +173,6 @@ Resources:
             Overrides:
               - SubnetId: !Ref SubnetA
                 InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
-          - LaunchTemplateSpecification:
-              LaunchTemplateId: !Ref LaunchTemplate
-              Version: !GetAtt LaunchTemplate.LatestVersionNumber
-            Overrides:
-              - SubnetId: !Ref SubnetA
-                InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
-          - LaunchTemplateSpecification:
-              LaunchTemplateId: !Ref LaunchTemplate
-              Version: !GetAtt LaunchTemplate.LatestVersionNumber
-            Overrides:
-              - SubnetId: !Ref SubnetA
-                InstanceType: !Join ['', [m5dn., !Ref InstanceSize]]
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -172,6 +184,7 @@ Resources:
         SecurityGroupIds:
           - !GetAtt ListenerSG.GroupId
           - !GetAtt DiscoverySG.GroupId
+          - !GetAtt HttpSG.GroupId
           - !GetAtt WebSocketSG.GroupId
         BlockDeviceMappings:
           - DeviceName: /dev/sdf
@@ -181,7 +194,7 @@ Resources:
               DeleteOnTermination: true
           - DeviceName: /dev/sdg
             Ebs:
-              VolumeType: sc1
+              VolumeType: !Ref ColdVolumeType
               VolumeSize: !Ref ColdVolumeSize
               DeleteOnTermination: true
         TagSpecifications:
@@ -290,12 +303,23 @@ Resources:
             /etc/systemd/system/geth.sh:
               content: !Sub |
                 #!/bin/bash
+
+                if ${NetRestrict}; then
+                    netrestrict=`curl https://ip-ranges.amazonaws.com/ip-ranges.json |
+                        grep -Po '(?<="ip_prefix": ")(\d{1,3}\.){3}\d{1,3}/\d{1,2}' |
+                        paste -sd,`
+                else netrestrict=0.0.0.0/0; fi
+
                 /usr/local/bin/${GethBuild}/geth \
                     --datadir /mnt/geth \
                     --datadir.ancient /mnt/freezer \
+                    --http \
+                    --http.api eth \
+                    --http.addr 0.0.0.0 \
                     --ws \
                     --ws.api eth \
-                    --ws.addr 0.0.0.0
+                    --ws.addr 0.0.0.0 \
+                    --netrestrict $netrestrict
               mode: "000755"
             /etc/systemd/system/geth.service:
               content: |
