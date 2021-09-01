@@ -1,0 +1,23 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  Name:
+    Type: String
+Resources:
+  ZeppelinNoteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub blake-${AWS::Region}-${Name}-emr-zep-note-${AWS::AccountId}
+  SinkBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub blake-${AWS::Region}-${Name}-emr-sink-${AWS::AccountId}
+Outputs:
+  ZeppelinNoteBucket:
+    Value: !Ref ZeppelinNoteBucket
+    Export:
+      Name: !Sub ${Name}-ZeppelinNoteBucket
+  SinkBucket:
+    Value: !Ref SinkBucket
+    Export:
+      Name: !Sub ${Name}-BlakeEDASinkBucket
+

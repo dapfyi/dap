@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: 2010-09-09 
+Parameters: 
+  Name:
+    Type: String
+  EMRVersion:
+    Type: String
+  InstanceType: 
+    Type: String 
+Resources: 
+  MiniEMR: 
+    Type: AWS::EMR::Cluster 
+    Properties: 
+      Instances: 
+        MasterInstanceGroup: 
+          InstanceCount: 1 
+          InstanceType: !Ref InstanceType 
+          Market: SPOT 
+          Name: MasterNode 
+      Applications: 
+        - Name: Hive
+        - Name: Spark 
+        - Name: Ganglia 
+        - Name: Zeppelin 
+        - Name: Livy
+      JobFlowRole: !Ref InstanceProfile 
+      Name: !Sub mini-${Name}-emr
+      ReleaseLabel: !Sub emr-${EMRVersion}
+      ServiceRole: EMR_DefaultRole
+      VisibleToAllUsers: true
+      Configurations:
+        - Classification: zeppelin-env
+          Configurations: 
+            - Classification: export
+              ConfigurationProperties:
+                ZEPPELIN_NOTEBOOK_S3_BUCKET: 
+                  Fn::ImportValue: !Sub ${Name}-ZeppelinNoteBucket
+                ZEPPELIN_NOTEBOOK_S3_USER: !Ref Name
+                ZEPPELIN_NOTEBOOK_STORAGE: org.apache.zeppelin.notebook.repo.S3NotebookRepo
+      Tags:
+        - Key: Name
+          Value: !Sub mini-emr-${Name}
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: true
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ec2.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref EC2ManagedPolicy
+  EC2ManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:UpdateInstanceInformation
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - s3:GetBucketVersioning
+              - s3:GetObject
+              - s3:GetObjectTagging
+              - s3:GetObjectVersion
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              - s3:ListMultipartUploadParts
+              - s3:ListBucketMultipartUploads
+            Resource:
+              - !Sub arn:aws:s3:::*-blake-${AWS::Region}-data-${AWS::AccountId}
+              - !Sub arn:aws:s3:::*-blake-${AWS::Region}-data-${AWS::AccountId}/*
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+                  - /*
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-ZeppelinNoteBucket
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-ZeppelinNoteBucket
+                  - /*
+          - Effect: Allow
+            Action:
+              - s3:AbortMultipartUpload
+              - s3:DeleteObject
+              - s3:PutObject
+              - s3:PutObjectTagging
+            Resource:
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+                  - /*
+              - Fn::Join:
+                - ''
+                - - 'arn:aws:s3:::'
+                  - Fn::ImportValue: !Sub ${Name}-ZeppelinNoteBucket
+                  - /*
+
