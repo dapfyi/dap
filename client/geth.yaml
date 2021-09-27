@@ -1,4 +1,4 @@
-# Run command below to deploy geth. Note: keep the same aws cli default region configured across blake modules.
+# Run command below to deploy Geth. Note: keep the same aws cli default region configured across Blake modules.
 # aws cloudformation create-stack --stack-name bgeth-v0 --template-body file://geth.yaml --capabilities CAPABILITY_IAM
 AWSTemplateFormatVersion: 2010-09-09
 Parameters:
@@ -11,9 +11,7 @@ Parameters:
   InstanceSize:
     Type: String
     Default: xlarge
-    AllowedValues:
-      - xlarge
-      - large
+    Description: "'large' for cost-optimized node, 'xlarge' to sync twice faster, '4xlarge' recommended to extract contract events"
   HotVolumeSize:
     Type: Number
     Default: 200

@@ -12,9 +12,9 @@ import logging
 import sys
 from concurrent.futures._base import TimeoutError
 from utils import eth_ip
+from constants import EPOCH_LENGTH
 from events.handlers import uniswap_pool
 
-EPOCH_LENGTH = 30000
 BATCH_LENGTH = 1000
 FACTORIES = {
     'Factory': {
@@ -51,26 +51,6 @@ def data_templates(subgraph, contracts):
         template = templates[contract['name']]
         contract.update({'events': template['events'], 'abi': template['abi']})
     return contracts
-
-def checkpoint(epoch, key):
-
-    def load(key, 
-        data_bucket=os.environ['DATA_BUCKET'], s3_fs=s3fs.S3FileSystem()):
-        if s3_fs.exists(f'{data_bucket}/{key}'):
-            object = boto3.resource('s3').Object(data_bucket, key)
-            metadata = int(object.get()['Body'].read())
-            return metadata
-        else: 
-            return 0
-
-    _last_block = load(key)
-    while _last_block >= EPOCH_LENGTH * (epoch + 2):
-        logger.info(f'epoch {epoch} persisted at least 2 epochs ahead: skip')
-        epoch += 1
-        key = f"{key.split('__')[0]}__{epoch}"
-        _last_block = load(key)
-
-    return epoch
 
 def lookahead(epoch, source, event, conf):
     w3 = Web3(Web3.WebsocketProvider(
@@ -163,7 +143,7 @@ def job(thread, thread_index, epoch, subgraph, eth_client):
             filesystem=s3fs.S3FileSystem(),
             partition_cols=['contract', 'epoch'],
             compression='SNAPPY',
-            partition_filename_cb=lambda x: f'{thread_index}.parquet.snappy'
+            partition_filename_cb=lambda _: f'{thread_index}.parquet.snappy'
         )
 
 LOG_LEVEL = logging.INFO

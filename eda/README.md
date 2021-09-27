@@ -16,8 +16,9 @@ See `stack` script for options, most notably `--InstanceType` to scale up m5.xla
 
 Note the instance id from ec2 console or cli and start a session to access on localhost, e.g. 
 ```
-instance_id=`aws ec2 describe-instances --filters Name=tag:Name,Values=mini-emr-default \
-    --query Reservations[*].Instances[0].InstanceId --output text`
+instance_id=`aws ec2 describe-instances --output text \
+    --filters Name=tag:Name,Values=mini-emr-default Name=instance-state-name,Values=running \
+    --query Reservations[*].Instances[0].InstanceId`
 
 aws ssm start-session --target $instance_id --document-name AWS-StartPortForwardingSession \
     --parameters portNumber=[8890],localPortNumber=[8890]
