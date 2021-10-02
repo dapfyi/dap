@@ -4,7 +4,8 @@ AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   GethBuild:
     Type: String
-    Default: geth-alltools-linux-amd64-1.10.8-26675454
+    Default: geth-alltools-linux-amd64-1.10.9-eae3b194
+    Description: "Change InstanceSize with a `cloudformation update-stack` call to force version update in a running client."
   Image:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2
@@ -33,6 +34,8 @@ Parameters:
       - false
 Resources:
   VPC:
+    # Make sure volumes get created first and deleted last as cfn doesn't know they're attached.
+    DependsOn: [HotVolume, ColdVolume]
     Type: AWS::EC2::VPC
     Properties: 
       CidrBlock: 192.168.0.0/16
@@ -151,12 +154,30 @@ Resources:
           IpProtocol: tcp
           ToPort: 8546
       VpcId: !Ref VPC
+  HotVolume:
+    Type: AWS::EC2::Volume
+    Properties: 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VolumeType: gp3
+      Size: !Ref HotVolumeSize
+      Tags: 
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-HotVolume
+  ColdVolume:
+    Type: AWS::EC2::Volume
+    Properties: 
+      AvailabilityZone: !Select [0, !GetAZs '']
+      VolumeType: !Ref ColdVolumeType
+      Size: !Ref ColdVolumeSize
+      Tags: 
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-ColdVolume
   SpotFleet: 
     Type: AWS::EC2::SpotFleet
     Properties:
       SpotFleetRequestConfigData:
         AllocationStrategy: lowestPrice
-        InstanceInterruptionBehavior: stop
+        InstanceInterruptionBehavior: terminate
         TargetCapacity: 1
         IamFleetRole: !Sub arn:aws:iam::${AWS::AccountId}:role/aws-service-role/spotfleet.amazonaws.com/AWSServiceRoleForEC2SpotFleet
         LaunchTemplateConfigs:
@@ -171,6 +192,57 @@ Resources:
             Overrides:
               - SubnetId: !Ref SubnetA
                 InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
+          - LaunchTemplateSpecification:
+              LaunchTemplateId: !Ref LaunchTemplate
+              Version: !GetAtt LaunchTemplate.LatestVersionNumber
+            Overrides:
+              - SubnetId: !Ref SubnetA
+                InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+              - ec2.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref ManagedPolicy
+  ManagedPolicy: 
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:UpdateInstanceInformation
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+              - ec2:DescribeVolumes
+              - ec2:DescribeInstanceStatus
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - ec2:AttachVolume
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/${HotVolume}
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:volume/${ColdVolume}
+            Condition:
+              StringLike:
+                "ec2:ResourceTag/Name": !Sub ${AWS::StackName}*
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -184,17 +256,6 @@ Resources:
           - !GetAtt DiscoverySG.GroupId
           - !GetAtt HttpSG.GroupId
           - !GetAtt WebSocketSG.GroupId
-        BlockDeviceMappings:
-          - DeviceName: /dev/sdf
-            Ebs:
-              VolumeType: gp3
-              VolumeSize: !Ref HotVolumeSize
-              DeleteOnTermination: true
-          - DeviceName: /dev/sdg
-            Ebs:
-              VolumeType: !Ref ColdVolumeType
-              VolumeSize: !Ref ColdVolumeSize
-              DeleteOnTermination: true
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -222,43 +283,10 @@ Resources:
             Content-Disposition: attachment; filename="userdata.txt"
             
             #!/bin/bash
-            /opt/aws/bin/cfn-init -s ${AWS::StackName} -r InstanceProfile --region ${AWS::Region} -c client
+            /opt/aws/bin/cfn-init -s ${AWS::StackName} -r LaunchTemplate --region ${AWS::Region} -c client
             --//--
-  InstanceRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-              - ec2.amazonaws.com
-          Action:
-            - sts:AssumeRole
-      ManagedPolicyArns:
-        - !Ref ManagedPolicy
-  # Allow connection through Session Manager (aws api).
-  ManagedPolicy: 
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Action:
-              - ssm:UpdateInstanceInformation
-              - ssmmessages:CreateControlChannel
-              - ssmmessages:CreateDataChannel
-              - ssmmessages:OpenControlChannel
-              - ssmmessages:OpenDataChannel
-            Resource:
-              - "*"
-  InstanceProfile:
-    Type: AWS::IAM::InstanceProfile
-    Properties:
-      Roles:
-        - !Ref InstanceRole
     Metadata:
+    # LaunchTemplate metadata allows configuration updates with instance changes.
       AWS::CloudFormation::Init:
         configSets:
           client:
@@ -266,11 +294,24 @@ Resources:
         bootstrap:
           files:
             /tmp/bootstrap/mount-volumes.sh:
-              content: |
+              content: !Sub |
                 #!/bin/bash
                 set -eux
                 exec >> /var/log/bootstrap.log 2>&1
 
+                # wait for previous instance to go down and detach volumes of blockchain data gracefully
+                for volume in ${HotVolume} ${ColdVolume}; do
+                    while [ -n "`aws ec2 describe-volumes --volume-ids $volume --output text \
+                        --query Volumes[*].Attachments[*].InstanceId`" ]; do
+                        sleep 1
+                    done
+                done
+
+                instance_id=`curl http://169.254.169.254/latest/meta-data/instance-id`
+                aws ec2 attach-volume --volume-id ${HotVolume} --instance-id $instance_id --device /dev/sdf
+                aws ec2 attach-volume --volume-id ${ColdVolume} --instance-id $instance_id --device /dev/sdg
+                # buffer to make sure devices are symlinked
+                sleep 3
                 hot_device=`readlink -f /dev/sdf`
                 cold_device=`readlink -f /dev/sdg`
 
@@ -284,10 +325,12 @@ Resources:
                 mount $cold_device /mnt/freezer
               mode: "000755"
             /tmp/bootstrap/download-geth.sh:
-              content: |
+              content: !Sub |
                 #!/bin/bash
                 set -eux
                 exec >> /var/log/bootstrap.log 2>&1
+
+                BUILD_ARCHIVE=${GethBuild}.tar.gz
 
                 archive_link=https://gethstore.blob.core.windows.net/builds/$BUILD_ARCHIVE
                 curl $archive_link -O
@@ -336,11 +379,11 @@ Resources:
           commands:
             00_mount_volumes:
               command: "/tmp/bootstrap/mount-volumes.sh"
+              env:
+                AWS_DEFAULT_REGION: !Ref "AWS::Region"
             01_download_geth:
               test: !Sub "test ! -d /usr/local/bin/${GethBuild}"
               command: "/tmp/bootstrap/download-geth.sh"
-              env:
-                BUILD_ARCHIVE: !Sub "${GethBuild}.tar.gz"
             02_start:
               command: |
                 systemctl daemon-reload

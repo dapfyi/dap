@@ -10,17 +10,17 @@ Blake includes a [Uniswap](https://uniswap.org/) integration.
 - **Infrastructure** - _You create or you delete, unless you develop._
 
 In order to reduce maintenance, imperative configuration has been made immutable with system-wide blue-green deployment. It removes the need to manage state drift where declarative abstractions taking away some level of control do not work well, i.e. no time is spent handling updates. The system itself is immutable. Developement always happen on a clean slate and no environment is subpar.
-- **Data Extraction** - _Scalable data lake feed of smart contract events._
+- **Data Extraction** - _Scalable data lake feed._
 
-Ingesting events scales with processors available to an integrated Ethereum client. Baseline performance to extract 30000 blocks (1 epoch) of all Uniswap events tracked in subgraph for all pools: 40 minutes on 15 threads, leaving 1 vCPU for regular Geth runtime on a 16 virtual core machine (m5.4xlarge). Scaling up Geth node through `InstanceSize` parameter in `client/bgeth.yaml` automatically increases number of threads in event ETL and reduces ETA linearly.
+Ingesting historical events from smart contracts scales with processors available to an integrated Ethereum client. Scaling up Geth node through `InstanceSize` parameter in `client/bgeth.yaml` automatically increases the number of threads in event ETL and reduces ETA linearly. Client computing capacity is decoupled from blockchain state and can be resized on demand while the number of Airflow workers is managed by K8s autoscaler.
 - **Data Lake** - _Multi-purpose design._
 
-Resulting data lake from event ETL stores contract and epoch partitions in s3 as snappy compressed parquet files. They are typically consumed by: Spark for data pipelines and data mining; pyarrow library to load machine learning datasets or conduct analysis.
+Resulting data lake from block and event ETLs stores partitions in s3 as snappy compressed parquet files. They are typically consumed by: Spark for data pipelines and data mining; pyarrow library to conduct analysis or load machine learning datasets.
 - **Data Pipelines** - _coming soon_
 
 see `eda` folder for Apache Zeppelin server with Spark interpreter
 ## Deployment
-WARNING: CICD is active by default on public main branch. To avoid any hack or unattended updates of processes with access to an Ethereum node, you are advised to fork this repo and change its URL in `bootstrap/app-init.sh`, i.e. replace `REPO=https://github.com/d3centr/blake.git` by your own address before you deploy any application.
+WARNING: CICD is active on main branch by default. To avoid any hack or unattended updates of processes with access to an Ethereum node, you are advised to fork this repo and change its URL in `bootstrap/app-init.sh`, i.e. replace `REPO=https://github.com/d3centr/blake.git` by your own address before you deploy any application.
 
 _Do not hold the author responsible._
 
