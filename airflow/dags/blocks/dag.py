@@ -101,13 +101,14 @@ def checkpoint(args):
     schedule_interval=None,
     start_date=days_ago(2),
     concurrency=CONCURRENCY,
-    params=PARAMS
+    params=PARAMS,
+    tags=['etl']
 )
-def block_etl():
+def block():
     args = initialize()
     checkpoint_task = checkpoint(args)
     for i in range(threads):
         batch(i * BATCH_LENGTH, args) >> checkpoint_task
 
-block_etl_dag = block_etl()
+block_dag = block()
 

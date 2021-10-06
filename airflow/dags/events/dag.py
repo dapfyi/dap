@@ -100,13 +100,14 @@ def checkpoint(args):
     schedule_interval=None, 
     start_date=days_ago(2),
     concurrency=concurrency,
-    params=PARAMS
+    params=PARAMS,
+    tags=['etl']
 )
-def event_etl():
+def event():
     args = partitioner(scan_contracts())
     checkpoint_task = checkpoint(args)
     for i in range(THREADS):
         thread(i, args) >> checkpoint_task
 
-event_etl_dag = event_etl()
+event_dag = event()
 

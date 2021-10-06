@@ -18,7 +18,7 @@ kubectl apply view-last-applied configmap -n default env -o yaml | \
 
 # Provision volume for Airflow records outside shorter-lived k8s clusters.
 postgresql_volume=$CLUSTER-airflow-postgresql-0
-postgresql_volume_size=4
+postgresql_volume_size=8
 
 postgresql_volume_id=`aws ec2 describe-volumes \
     --filters Name=tag:Name,Values=$postgresql_volume --query Volumes[*].VolumeId --output text`
