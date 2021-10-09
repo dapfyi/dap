@@ -7,6 +7,8 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub blake-${AWS::Region}-${Name}-emr-zep-note-${AWS::AccountId}
+      VersioningConfiguration:
+        Status: Enabled
   SinkBucket:
     Type: AWS::S3::Bucket
     Properties:

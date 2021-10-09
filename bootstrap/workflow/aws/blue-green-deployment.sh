@@ -1,15 +1,14 @@
 #!/bin/bash
 set -euo pipefail
-
 source aws/lib/env.sh
-source tests.sh
 
-ETHEREUM_CLIENT=bgeth-v0
-eth_net_param=`aws cloudformation list-exports --query Exports[*].[Name,Value] --output text | 
-    grep ^$ETHEREUM_CLIENT`
+ETHEREUM_CLIENT=blake-geth
 
-subnet_a=`echo "$eth_net_param" | awk '$1~/subnet-a$/{print $2}'`
-subnet_b=`echo "$eth_net_param" | awk '$1~/subnet-b$/{print $2}'`
+subnets=`aws cloudformation list-exports \
+    --query "Exports[?starts_with(Name, 'blake-network-subnet-')].[Name,Value]" \
+    --output text`
+subnet_a=`echo "$subnets" | awk '$1~/subnet-a$/{print $2}'`
+subnet_b=`echo "$subnets" | awk '$1~/subnet-b$/{print $2}'`
 
 
 ## Determine new cluster color according to blue-green deployment workflow.
@@ -88,11 +87,12 @@ cluster_definition="
           id: $subnet_b
 
   managedNodeGroups:
+
   - name: large-spot-a
     subnets: [$subnet_a]
     # ARM64 architecture, e.g. m6g and m6gd instances, not supported in bitnami charts, yet: 
     # see https://github.com/bitnami/charts/issues/7040.
-    instanceTypes: ['m5.large', 'm5d.large']
+    instanceTypes: ['m5.large', 'm5d.large', 'm5n.large']
     # keep volumeSize > 8 to avoid NodeHasDiskPressure
     volumeSize: 16
     spot: true
@@ -100,20 +100,57 @@ cluster_definition="
     minSize: 0
     maxSize: 7
     iam: $policies
+
   - name: xlarge-spot-a
     subnets: [$subnet_a]
-    instanceTypes: ['m5.xlarge', 'm5d.xlarge']
-    volumeSize: 16
+    instanceTypes: ['m5.xlarge', 'm5d.xlarge', 'm5n.xlarge']
+    volumeSize: 24
     spot: true
     desiredCapacity: 0
     minSize: 0
-    maxSize: 2
+    maxSize: 4
+    tags:
+      # trigger autoscaling from 0 with ephemeral storage request
+      # https://github.com/weaveworks/eksctl/issues/1571#issuecomment-785789833
+      # manual propagation to ASG still required: see after cluster creation
+      k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage: 24Gi
+    iam: $policies
+
+  - name: rxlarge-spot-a
+    subnets: [$subnet_a]
+    instanceTypes: ['r5.xlarge', 'r5d.xlarge', 'r5n.xlarge']
+    volumeSize: 24
+    spot: true
+    desiredCapacity: 0
+    minSize: 0
+    maxSize: 5
+    tags:
+      k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage: 24Gi
     iam: $policies
 
 "
 
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin
+
+echo "BLAKE ~ tag propagation to autoscaling groups"
+# could be automatically handled by AWS at some point
+asg_propagation_tags="
+    k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage
+"
+nodegroups=`aws eks list-nodegroups --cluster-name $new-blake --no-paginate \
+    --query nodegroups --output text`
+for ng in $nodegroups; do
+    asg=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
+        --query nodegroup.resources.autoScalingGroups --output text`
+    ng_tags=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
+        --query nodegroup.tags --output table | tr -d ' '`
+    for tag in $asg_propagation_tags; do
+        value=`echo "$ng_tags" | awk -F'|' '$2=="'$tag'"{print $3}'`
+        aws autoscaling create-or-update-tags --tags \
+            ResourceId=$asg,ResourceType=auto-scaling-group,Key=$tag,Value=$value,PropagateAtLaunch=true
+    done
+done
 
 # Create global variables.
 cat <<EOF | kubectl apply -f -
@@ -127,6 +164,8 @@ data:
   SUBNET_A: $subnet_a
   DATA_BUCKET: $new-blake-$REGION-data-$ACCOUNT
   OTHER_DATA_BUCKET: $other-blake-$REGION-data-$ACCOUNT
+  DELTA_BUCKET: $new-blake-$REGION-delta-$ACCOUNT
+  OTHER_DELTA_BUCKET: $other-blake-$REGION-delta-$ACCOUNT
 EOF
 
 
@@ -157,19 +196,15 @@ helm install \
     --set clusterName=$new-blake,imageVersion=$autoscaler_version \
     cluster-autoscaler ./aws/helm/cluster-autoscaler
 
-scale_out_test
 
-
-## Deploy metrics server.
-
-# Metrics server enables kubectl top command. It can help to manage resources on cluster autoscaler.
-# Example memory limit in autoscaler git repo was too tight at bootstrap: bumped up from 300 to 500Mi.
+## Deploy metrics server (enables kubectl top command)
 
 echo "BLAKE ~ metrics server deployment"
 
+# install before last version to avoid the edge case where latest tag release isn't available, yet
 ms_version=`curl https://api.github.com/repos/kubernetes-sigs/metrics-server/tags | \
     grep -oP '(?<="name": "v)[0-9.]+' | \
-    head -1`
+    head -2 | tail -1`
 
 kubectl apply \
     -f https://github.com/kubernetes-sigs/metrics-server/releases/download/v$ms_version/components.yaml

@@ -1,0 +1,13 @@
+build:
+  coldBuild: PreSync
+  hotBuild: PreSync
+  baseImage: base
+
+  # match scala and hadoop versions with packaged SPARK_VERSION
+  scalaVersion: 2.12
+  hadoopVersion: 3.3.1
+
+  # s3 support library: 1.11.901 in hadoop 3.3.1
+  # see Compile Dependencies in hadoop-aws https://mvnrepository.com/artifact/org.apache.hadoop/hadoop-aws
+  awsSdkVersion: 1.11.901
+

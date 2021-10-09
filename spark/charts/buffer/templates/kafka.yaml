@@ -1,0 +1,110 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-kafka
+spec:
+  clusterIP: None
+  ports:
+  - name: client
+    port: 9092
+    protocol: TCP
+    targetPort: client
+  selector:
+    app: {{ .Release.Name }}-kafka
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-zookeeper
+spec:
+  clusterIP: None
+  ports:
+  - name: zookeeper
+    port: 2181
+    protocol: TCP
+    targetPort: zookeeper
+  selector:
+    app: {{ .Release.Name }}-zookeeper
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-kafka
+spec:
+  serviceName: {{ .Release.Name }}-kafka
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-kafka
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-kafka
+    spec:
+      containers:
+      - args:
+        - bin/kafka-server-start.sh /opt/blake/kafka/config/server.properties
+        image: {{ .Values.registry }}:kafka
+        imagePullPolicy: Always
+        name: {{ .Release.Name }}-kafka
+        lifecycle: 
+          postStart:
+            exec:
+              command:
+              - sh
+              - -c
+              - sleep 2 && bin/kafka-topics.sh --create --if-not-exists --bootstrap-server localhost:9092
+                    --replication-factor 1 --partitions 1 --topic {{ .Release.Name }}-buffer
+        ports:
+        - containerPort: 9092
+          name: client
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 4m
+            memory: 340Mi
+        volumeMounts:
+        - mountPath: /opt/blake/kafka/config/server.properties
+          name: kafka-config
+          subPath: server.properties
+        - mountPath: /mnt/kafka-logs
+          name: kafka-data
+      volumes:
+      - configMap:
+          name: {{ .Release.Name }}-kafka
+        name: kafka-config
+      - emptyDir: {}
+        name: kafka-data
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-zookeeper
+spec:
+  serviceName: {{ .Release.Name }}-zookeeper
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-zookeeper
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-zookeeper
+    spec:
+      containers:
+      - args:
+        - bin/zookeeper-server-start.sh config/zookeeper.properties
+        image: {{ .Values.registry }}:kafka
+        imagePullPolicy: Always
+        name: {{ .Release.Name }}-zookeeper
+        ports:
+        - containerPort: 2181
+          name: zookeeper
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 1m
+            memory: 68Mi
+

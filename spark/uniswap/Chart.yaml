@@ -1,0 +1,11 @@
+apiVersion: v2
+name: uniswap
+version: 1.0.0
+dependencies:
+- name: build
+  version: 1.0.0
+  repository: "file://../charts/build"
+- name: buffer
+  version: 1.0.0
+  repository: "file://../charts/buffer"
+

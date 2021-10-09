@@ -6,7 +6,7 @@ profile=default
 # template
 Name=default
 EMRVersion=6.3.0
-InstanceType=m5.xlarge
+InstanceType=r5.xlarge
 
 # parse arguments
 while test $# -gt 0; do 

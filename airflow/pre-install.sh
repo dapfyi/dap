@@ -9,6 +9,8 @@ source init.sh
 
 echo 'BLAKE ~ running Airflow pre-install'
 
+kubectl create namespace airflow --dry-run=client -o yaml | kubectl apply -f -
+
 
 # Create global environment variables in airflow namespace.
 kubectl apply view-last-applied configmap -n default env -o yaml | \
@@ -95,16 +97,16 @@ cat <<EOF | kubectl apply -f -
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: airflow-base-image-build
+  name: airflow-base-build
   namespace: airflow
 spec:
   template:
     metadata:
-      name: airflow-base-image-build
+      name: airflow-base-build
     spec:
       restartPolicy: Never
       containers:
-      - name: airflow-base-image-build
+      - name: airflow-base-build
         image: gcr.io/kaniko-project/executor:latest
         args:
         - --context=/mnt
@@ -140,26 +142,9 @@ data:
     ENV AWS_DEFAULT_REGION $REGION
 EOF
 
-build_status () { 
-
-    kubectl get job -n airflow airflow-base-image-build \
-        -o jsonpath='{.status.conditions[?(@.type=="Complete")].status}'
-
-}
-
-timeout=0
-echo 'BLAKE ~ tracking base image build status'
-until build_status | grep -q ^True$; do
-    sleep 2
-    ((timeout+=2))
-    if [ $timeout -ge 180 ]; then
-        echo 'BLAKE ~ base image build timed out'
-        exit 1
-    fi
-done
-
-echo 'BLAKE ~ base image build completed in '$timeout's'
-kubectl delete job -n airflow airflow-base-image-build
+sleep 2
+kubectl attach -n airflow job/airflow-base-build
+kubectl delete job -n airflow airflow-base-build
 
 
 echo 'BLAKE ~ stateful Airflow resources provisioned'

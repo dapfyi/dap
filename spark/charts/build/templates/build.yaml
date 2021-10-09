@@ -1,0 +1,128 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-builder
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.coldBuild }}
+    helm.sh/hook-weight: "-99"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: {{ .Release.Name }}-builder
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: {{ .Release.Name }}-builder
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/mnt"
+        - "--destination={{ .Values.registry }}:{{ .Values.tag }}-builder"
+        volumeMounts:
+        - name: dockerfile
+          mountPath: /mnt
+      volumes:
+      - name: dockerfile
+        configMap:
+          name: {{ .Release.Name }}-cold-dockerfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-cold-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.coldBuild }}
+    helm.sh/hook-weight: "-99"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  Dockerfile: |
+    FROM {{ .Values.registry }}:{{ .Values.baseImage }}
+
+    USER root
+
+    RUN apt-get install -y git curl unzip zip && rm -rf /var/cache/apt/* && \
+        curl -s "https://get.sdkman.io" | bash
+
+    RUN git clone --single-branch --depth 1 --branch {{ .Values.branch }} {{ .Values.repo }}
+
+    RUN source /root/.sdkman/bin/sdkman-init.sh && cd blake/spark && \
+        sdk install sbt `awk '$3=="sbtVersion" && $4==":=" {print $5}' build.sbt | tr -d '"'` && \
+        ln -s /opt/spark/jars lib && \
+        mkdir -p {{ .Release.Name }}/target/scala-{{ .Values.scalaVersion }} && \
+
+    {{ if eq .Release.Name "uniswap" }}
+        cd {{ .Release.Name }}/target/scala-{{ .Values.scalaVersion }} && \
+        cp /opt/spark/jars/sparkubi.jar . && \
+
+        {{- /* s3 */}}
+        curl -O https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/{{ .Values.hadoopVersion }}/hadoop-aws-{{ .Values.hadoopVersion }}.jar && \
+        curl -O https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/{{ .Values.awsSdkVersion }}/aws-java-sdk-bundle-{{ .Values.awsSdkVersion }}.jar && \
+
+        {{- /* delta */}}
+        curl -O https://repo1.maven.org/maven2/io/delta/delta-core_2.12/1.1.0/delta-core_2.12-1.1.0.jar && \
+
+        {{- /* delta Compile Dependencies */}}
+        curl -O https://repo1.maven.org/maven2/org/antlr/antlr4-runtime/4.8/antlr4-runtime-4.8.jar && \
+        curl -O https://repo1.maven.org/maven2/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar && \
+
+        {{- /* spark-sql-kafka */}}
+        curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.2.0/spark-sql-kafka-0-10_2.12-3.2.0.jar && \
+
+        {{- /* spark-sql-kafka Compile Dependencies */}}
+        curl -O https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/2.8.0/kafka-clients-2.8.0.jar && \
+        curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/3.2.0/spark-token-provider-kafka-0-10_2.12-3.2.0.jar && \
+        curl -O https://repo1.maven.org/maven2/org/apache/spark/spark-tags_2.12/3.2.0/spark-tags_2.12-3.2.0.jar && \
+        curl -O https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.6.2/commons-pool2-2.6.2.jar && \
+        curl -O https://repo1.maven.org/maven2/com/google/code/findbugs/jsr305/3.0.0/jsr305-3.0.0.jar && \
+
+        cd - && \
+    {{ end }}
+
+        sbt {{ .Release.Name }}/package
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-build
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.hotBuild }}
+    helm.sh/hook-weight: "-98"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: {{ .Release.Name }}-build
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: {{ .Release.Name }}-build
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/mnt"
+        - "--destination={{ .Values.registry }}:{{ .Values.tag }}"
+        volumeMounts:
+        - name: dockerfile
+          mountPath: /mnt
+      volumes:
+      - name: dockerfile
+        configMap:
+          name: {{ .Release.Name }}-hot-dockerfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-hot-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.hotBuild }}
+    helm.sh/hook-weight: "-98"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  Dockerfile: |
+    FROM {{ .Values.registry }}:{{ .Values.tag }}-builder AS build
+
+    RUN cd blake/spark && git pull && \
+        source /root/.sdkman/bin/sdkman-init.sh && sbt {{ .Release.Name }}/package
+
+    FROM {{ .Values.registry }}:base
+    COPY --from=build /opt/spark/work-dir/blake/spark/{{ .Release.Name }}/target/scala-{{ .Values.scalaVersion }}/*.jar /opt/spark/jars/
+

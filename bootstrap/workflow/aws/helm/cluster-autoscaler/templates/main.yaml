@@ -138,6 +138,7 @@ spec:
           resources:
             limits:
               cpu: 100m
+              # Example memory limit in autoscaler git repo was too tight at bootstrap: bumped up from 300 to 500Mi.
               memory: 500Mi
             requests:
               cpu: 100m
