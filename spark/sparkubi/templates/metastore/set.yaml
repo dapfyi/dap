@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-hive-metastore
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: hive-metastore
+  serviceName: {{ .Release.Name }}-hive-metastore
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/name: hive-metastore
+    spec:
+      containers:
+      - name: metastore
+        image: {{ .Values.global.registry }}:metastore
+        imagePullPolicy: Always
+        command:
+        - /bin/sh
+        - -c
+        - "hive --service metastore || \
+            (schematool -initSchema -dbType postgres && hive --service metastore)"
+        volumeMounts:
+        - name: hive-config
+          mountPath: /opt/hive/conf
+      volumes:
+      - name: hive-config
+        configMap:
+          name: {{ .Release.Name }}-hive-site
+

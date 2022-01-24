@@ -21,6 +21,7 @@ lazy val global = project
 lazy val dependencies = Seq(
     "org.apache.spark" %% "spark-core" % "3.2.0" % "provided",
     "org.apache.spark" %% "spark-streaming" % "3.2.0" % "provided",
+    "io.delta" %% "delta-core" % "1.1.0" % "provided",
     "com.holdenkarau" %% "spark-testing-base" % "3.2.0_1.1.1" % Test excludeAll(
         ExclusionRule(organization = "org.apache.spark"))
 )
@@ -43,7 +44,6 @@ lazy val uniswap = project
         settings,
         libraryDependencies ++= dependencies,
         libraryDependencies ++= Seq(
-            "io.delta" %% "delta-core" % "1.1.0" % "provided",
             "org.apache.kafka" % "kafka-clients" % "2.8.0" % "provided"),
         artifactName := { (sv: ScalaVersion, module: ModuleID, artifact: Artifact) =>
             "uniswap." + artifact.extension },

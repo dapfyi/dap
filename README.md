@@ -15,7 +15,7 @@ In order to reduce maintenance, imperative configuration has been made immutable
 Ingesting historical events from smart contracts scales with processors available to an integrated Ethereum client. Computing capacity is decoupled from blockchain state and can be resized on demand (`InstanceSize` parameter in Geth [template](./client/geth.yaml)). On the server side, Airflow workers required for orchestration and post-processing can be left entirely managed by K8s autoscaler.
 - **Processing** - _Off-chain computation engine._
 
-Apache Spark has been extended with a custom plugin enabling the seamless processing of big blockchain integers. The accurate valuation of transactions and tokens can keep benefiting from native Spark performance. See [SparkUBI](./spark/sparkubi/README.md) for more info.
+Apache Spark has been extended with a custom plugin enabling the seamless processing of big blockchain integers. The accurate valuation of transactions and tokens benefits from native Spark performance. See [SparkUBI](./spark/sparkubi/README.md) for more info.
 - **Data Pipelines** - _coming soon_
 
 ## Deployment

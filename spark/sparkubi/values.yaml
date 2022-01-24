@@ -1,0 +1,7 @@
+build:
+  baseImage: dep
+postgresql:
+  postgresqlUsername: hive
+  postgresqlPassword: hive
+  postgresqlDatabase: hive
+ 

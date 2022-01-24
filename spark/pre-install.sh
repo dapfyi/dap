@@ -1,6 +1,5 @@
 #!/bin/bash
 source init.sh
-build_base_image=${1:-false}
 
 echo 'BLAKE ~ running Spark pre-install'
 
@@ -47,100 +46,9 @@ aws s3api head-bucket --bucket $delta_bucket || aws s3 mb s3://$delta_bucket
 echo "s3://$delta_bucket"
 
 
-# Build base Spark image.
-if [ $build_base_image = true ]; then
-    spark_path=/tmp/spark-$SPARK_VERSION
-
-    kubectl delete -n spark job/spark-base-build --ignore-not-found
-    cat <<EOF | kubectl apply -f -
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: spark-base-build
-  namespace: spark
-spec:
-  template:
-    metadata:
-      name: spark-base-build
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: spark-base-build
-        image: gcr.io/kaniko-project/executor:latest
-        args:
-        - --context=/mnt
-        - --destination=$REGISTRY/spark:base
-        volumeMounts:
-        - name: dockerfile
-          mountPath: /mnt
-      volumes:
-      - name: dockerfile
-        configMap:
-          name: base-dockerfile
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: base-dockerfile
-  namespace: spark
-data:
-  Dockerfile: |
-    # build Spark distribution from source
-    FROM openjdk:11-jdk-slim AS dist
-
-    RUN apt update && apt install -y curl && rm -rf /var/cache/apt/*
-
-    RUN curl -L -o $spark_path.tar.gz https://github.com/apache/spark/archive/v$SPARK_VERSION.tar.gz && \
-        tar xzvf $spark_path.tar.gz -C /tmp
-
-    RUN export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g" && \
-        $spark_path/dev/make-distribution.sh --name blake-dist \
-            -Phive \
-            -Phive-thriftserver \
-            -Pkubernetes
-
-    # base Spark image referencing artefacts built above
-    FROM openjdk:11-jre-slim
-
-    RUN set -ex && \
-        sed -i 's/http:\/\/deb.\(.*\)/https:\/\/deb.\1/g' /etc/apt/sources.list && \
-        apt-get update && \
-        ln -s /lib /lib64 && \
-        apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps && \
-        mkdir -p /opt/spark && \
-        mkdir -p /opt/spark/examples && \
-        mkdir -p /opt/spark/work-dir && \
-        touch /opt/spark/RELEASE && \
-        rm /bin/sh && \
-        ln -sv /bin/bash /bin/sh && \
-        echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
-        chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
-        rm -rf /var/cache/apt/*
-
-    COPY --from=dist $spark_path/dist/jars /opt/spark/jars
-    COPY --from=dist $spark_path/dist/bin /opt/spark/bin
-    COPY --from=dist $spark_path/dist/sbin /opt/spark/sbin
-    COPY --from=dist $spark_path/dist/kubernetes/dockerfiles/spark/entrypoint.sh /opt/
-    COPY --from=dist $spark_path/dist/kubernetes/dockerfiles/spark/decom.sh /opt/
-    COPY --from=dist $spark_path/dist/kubernetes/tests /opt/spark/tests
-    
-    ENV SPARK_HOME /opt/spark
-    
-    WORKDIR /opt/spark/work-dir
-    RUN chmod g+w /opt/spark/work-dir
-    RUN chmod a+x /opt/decom.sh
-    
-    ENTRYPOINT [ "/opt/entrypoint.sh" ]
-    
-    USER 185
-EOF
-
-    sleep 5
-    kubectl attach -n spark job/spark-base-build
-
-else 
-    echo "BLAKE ~ skipping Spark base build: run './pre-install.sh true' to update"
-fi
+# Provision volume for metastore persistence outside shorter-lived k8s clusters.
+source ../bootstrap/workflow/aws/lib/persistent_volume.sh
+persistent_volume $PG_VOLUME 8 spark
 
 
 echo 'BLAKE ~ stateful Spark resources provisioned'

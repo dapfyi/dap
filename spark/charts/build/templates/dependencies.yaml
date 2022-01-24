@@ -1,0 +1,63 @@
+{{ if eq .Release.Name "sparkubi" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dependencies
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.depBuild }}
+    helm.sh/hook-weight: "-100"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: dependency-build
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: dependency-build
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/mnt"
+        - "--destination={{ .Values.global.registry }}:dep"
+        volumeMounts:
+        - name: dockerfile
+          mountPath: /mnt
+      volumes:
+      - name: dockerfile
+        configMap:
+          name: dep-dockerfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dep-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.depBuild }}
+    helm.sh/hook-weight: "-100"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  Dockerfile: |
+    FROM {{ .Values.global.registry }}:base
+
+    ARG MVN=https://repo1.maven.org/maven2
+    ARG DEST=/opt/spark/jars/
+
+    # S3
+    ADD $MVN/org/apache/hadoop/hadoop-aws/{{ .Values.hadoopVersion }}/hadoop-aws-{{ .Values.hadoopVersion }}.jar $DEST
+    ADD $MVN/com/amazonaws/aws-java-sdk-bundle/{{ .Values.awsSdkVersion }}/aws-java-sdk-bundle-{{ .Values.awsSdkVersion }}.jar $DEST
+
+    # Delta
+    ADD $MVN/io/delta/delta-core_2.12/1.1.0/delta-core_2.12-1.1.0.jar $DEST
+
+    # Delta Compile Dependencies
+    ADD $MVN/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar $DEST
+    # skipping antlr4-runtime-4.8: already available in Spark distribution
+
+    # Hive Connector
+    ADD $MVN/io/delta/delta-hive_2.12/0.2.0/delta-hive_2.12-0.2.0.jar $DEST
+
+    USER root
+    RUN chmod 644 $DEST*
+    USER 185
+{{ end }}
+

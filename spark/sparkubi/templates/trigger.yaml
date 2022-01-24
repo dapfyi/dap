@@ -1,6 +1,0 @@
-# dummy resource to trigger build hooks
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-build-trigger
-

@@ -1,34 +1,40 @@
+{{ if eq .Release.Name "uniswap" }}
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ .Release.Name }}-image
+  name: kafka-image
   annotations:
-    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook: {{ .Values.depBuild }}
+    helm.sh/hook-weight: "-100"
     helm.sh/hook-delete-policy: before-hook-creation
 spec:
   template:
     metadata:
-      name: {{ .Release.Name }}-image
+      name: kafka-image
     spec:
       restartPolicy: Never
       containers:
-      - name: {{ .Release.Name }}-image
+      - name: kafka-image
         image: gcr.io/kaniko-project/executor:latest
         args:
         - "--context=/mnt"
-        - "--destination={{ .Values.registry }}:{{ .Values.tag }}"
+        - "--destination={{ .Values.global.registry }}:kafka"
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt
       volumes:
       - name: dockerfile
         configMap:
-          name: {{ .Release.Name }}-dockerfile
+          name: kafka-dockerfile
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-dockerfile
+  name: kafka-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.depBuild }}
+    helm.sh/hook-weight: "-100"
+    helm.sh/hook-delete-policy: before-hook-creation
 data:
   Dockerfile: |
     FROM openjdk:11-jre-slim
@@ -36,12 +42,12 @@ data:
     ARG KAFKA_VERSION=3.0.0
     ARG KAFKA_RELEASE=kafka_2.13-$KAFKA_VERSION
     ARG URL=https://dlcdn.apache.org/kafka/$KAFKA_VERSION/$KAFKA_RELEASE.tgz
-    
+
     RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* && \
         mkdir /opt/blake && curl -O $URL && tar -xzf $KAFKA_RELEASE.tgz -C /opt/blake && \
         rm $KAFKA_RELEASE.tgz && apt-get autoremove -y curl
     
     WORKDIR /opt/blake/$KAFKA_RELEASE
-
     ENTRYPOINT ["bash", "-c"]
+{{ end }}
 

@@ -46,7 +46,7 @@ spec:
       containers:
       - args:
         - bin/kafka-server-start.sh /opt/blake/kafka/config/server.properties
-        image: {{ .Values.registry }}:kafka
+        image: {{ .Values.global.registry }}:kafka
         imagePullPolicy: Always
         name: {{ .Release.Name }}-kafka
         lifecycle: 
@@ -96,7 +96,7 @@ spec:
       containers:
       - args:
         - bin/zookeeper-server-start.sh config/zookeeper.properties
-        image: {{ .Values.registry }}:kafka
+        image: {{ .Values.global.registry }}:kafka
         imagePullPolicy: Always
         name: {{ .Release.Name }}-zookeeper
         ports:

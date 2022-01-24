@@ -4,5 +4,8 @@ version: 1.0.0
 dependencies:
 - name: build
   version: 1.0.0
-  repository: "file://../charts/build"
+  repository: file://../charts/build
+- name: postgresql
+  version: ~10.16.2
+  repository: https://charts.bitnami.com/bitnami
 

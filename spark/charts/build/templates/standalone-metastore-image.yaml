@@ -1,0 +1,78 @@
+# Standalone Hive metastore is avoided with Spark for built-in version compatibility, including STS.
+# Could be used with Presto or Spark once it upgrades Hive to its 3rd major version.
+{{ if eq .Release.Name "presto" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: metastore-image
+  annotations:
+    argocd.argoproj.io/hook: Skip
+    helm.sh/hook-weight: "-100"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: metastore-image
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: metastore-image
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/mnt"
+        - "--destination={{ .Values.global.registry }}:standalone-metastore"
+        volumeMounts:
+        - name: dockerfile
+          mountPath: /mnt
+      volumes:
+      - name: dockerfile
+        configMap:
+          name: metastore-dockerfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: metastore-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: Skip
+    helm.sh/hook-weight: "-100"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  Dockerfile: |
+    FROM openjdk:11-jre-slim
+
+    ARG VERSION=3.1.2
+    ARG TAR=hive-standalone-metastore-$VERSION-bin.tar.gz
+    ARG HADOOP={{ .Values.hadoopVersion }}
+    ARG AWS={{ .Values.awsSdkVersion }}
+    ARG URL=https://repo1.maven.org/maven2
+    
+    RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* && \
+        curl -O $URL/org/apache/hive/hive-standalone-metastore/$VERSION/$TAR && \
+        tar -xvf $TAR && rm $TAR && mv apache-hive-metastore-$VERSION-bin /opt/hive && \
+        curl -O https://dlcdn.apache.org/hadoop/common/hadoop-$HADOOP/hadoop-$HADOOP.tar.gz && \
+        tar -xvf hadoop-$HADOOP.tar.gz && rm hadoop-$HADOOP.tar.gz && mv hadoop-$HADOOP /opt && \
+        apt-get autoremove -y curl
+    
+    ARG DEST=/opt/hive/lib/
+    ADD $URL/org/apache/hadoop/hadoop-aws/$HADOOP/hadoop-aws-$HADOOP.jar $DEST
+    ADD $URL/com/amazonaws/aws-java-sdk-bundle/$AWS/aws-java-sdk-bundle-$AWS.jar $DEST
+    ADD https://jdbc.postgresql.org/download/postgresql-42.3.1.jar $DEST
+    
+    WORKDIR /opt/hive
+    ENV HADOOP_HOME=/opt/hadoop-$HADOOP
+
+    # - idempotent container command initializing tables in this image:
+    # "bin/schematool -initSchema -dbType postgres || true && bin/start-metastore"
+    #
+    # - in addition, the following properties should be added to hive-site:
+    #  <property>
+    #    <name>metastore.task.threads.always</name>
+    #    <value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value>
+    #  </property>
+    #  <property>
+    #    <name>metastore.expression.proxy</name>
+    #    <value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value>
+    #  </property>
+{{ end }}
+

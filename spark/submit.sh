@@ -28,12 +28,31 @@ set -- ${args[@]}
 
 app=${1///}
 source $app/config/$config
+shell_jars="/opt/spark/work-dir/blake/spark/$app/target/scala-2.12/\*.jar"
 
 if [ $2 = shell ]; then
     client=shell
-    name=uniswap
+    name=$app
+    command=shell
+    tag=$app-builder
+    load="--jars $shell_jars"
+elif [ $2 = script ]; then
+    client=script
+    name=$app-${3/_/-}
+    command=shell
+    tag=$app-builder
+    load="-i /opt/spark/work-dir/blake/spark/$app/scripts/$3.scala --jars $shell_jars"
+elif [ $2 = thrift ]; then
+    client=thrift
+    name=$app
+    command=submit
+    tag=$app
+    load="--class org.apache.spark.sql.hive.thriftserver.HiveThriftServer2"
 else
     client=submit
+    command=submit
+    tag=$app
+    load="--class $class"
 
     if [[ $2 =~ ^[0-9]+$ ]]; then epoch=$2
     elif [[ $2 =~ ^[0-9]{4}(-[0-9]{2}){2}$ ]]; then agg_date=$2; fi
@@ -46,20 +65,17 @@ else
     esac    
 fi
 
-case $client in
-    submit)
-        tag=$app
-        load="--class $class";;
-    shell)
-        tag=$app-builder
-        target=/opt/spark/work-dir/blake/spark/$app/target/scala-2.12
-        load="--jars $target/\*.jar";;
-esac
-
 ## Job
 
-# authenticate with cluster and export REGISTRY variable
-source `git rev-parse --show-toplevel`/bootstrap/app-init.sh
+if [ -f /.dockerenv ]; then 
+    echo "found /.dockerenv: submit will attempt to run on local k8s"
+    stdin=false
+else
+    stdin=true
+    echo "/.dockerenv wasn't found: authenticating with k8s outside container"
+    # authenticate with cluster and export REGISTRY variable
+    source `git rev-parse --show-toplevel`/bootstrap/app-init.sh
+fi
 
 DRIVER_PORT=35743
 STATE_STORE=org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider
@@ -94,6 +110,10 @@ spec:
     port: 4040
     protocol: TCP
     targetPort: 4040
+  - name: thrift
+    port: 10000
+    protocol: TCP
+    targetPort: 10000
   selector:
     job-name: $name-$client
   type: ClusterIP
@@ -107,7 +127,7 @@ data:
   submit.sh: |
     #!/bin/bash
 
-    /opt/spark/bin/spark-$client \
+    /opt/spark/bin/spark-$command \
         $load \
         --master k8s://https://kubernetes.default.svc.cluster.local:443 \
         --driver-memory $DRI_MEM \
@@ -129,7 +149,7 @@ data:
         --conf spark.sql.extensions=d3centr.sparkubi.Extensions \
         --conf spark.driver.blake.epoch=${epoch:-"-1"} \
         --conf spark.driver.blake.agg.date=${agg_date:-"0000-00-00"} \
-         /opt/spark/jars/$app.jar
+        /opt/spark/jars/$app.jar
 
   pod-template.yaml: |
     spec:
@@ -165,8 +185,10 @@ spec:
         volumeMounts:
         - name: command
           mountPath: /mnt
-        stdin: true
-        tty: true
+        - name: conf
+          mountPath: /opt/spark/conf
+        stdin: $stdin
+        tty: $stdin
         envFrom:
         - configMapRef:
             name: env
@@ -180,6 +202,9 @@ spec:
         configMap:
           name: $name-$client
           defaultMode: 0777
+      - name: conf
+        configMap:
+          name: sparkubi-hive-site
 EOF
 
 ## Garbage Collection
@@ -198,17 +223,15 @@ client_status () {
     local status=`kubectl get pod -n spark -l job-name=$name-$client \
         -o custom-columns=":status.phase" --no-headers`
     echo client pod $status
-    [ $status = Running ]
+    [[ $status =~ ^(Running|Succeeded)$ ]]
 }
 until client_status; do sleep 2; done
 
-if [ $client = shell ]; then
-    kubectl attach -itn spark job/$name-$client ||
-        echo "issue encountered while attaching shell, retry:" &&
-        echo "kubectl attach -itn spark job/$name-$client"
+if [ -f /.dockerenv ]; then
+    kubectl attach -n spark job/$name-$client
+elif [[ $client =~ ^(shell|script)$  ]]; then
+    kubectl attach -in spark job/$name-$client
 elif [ $client = submit ]; then
-    kubectl logs -n spark job/$name-$client -f ||
-        echo "issue encountered while redirecting output" &&
-        echo "follow the app progress: kubectl logs -n spark job/$name-$client -f"
+    kubectl logs -n spark job/$name-$client -f
 fi
 

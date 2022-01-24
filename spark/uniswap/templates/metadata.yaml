@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-table-creations
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      serviceAccountName: spark
+      containers:
+      - name: {{ .Release.Name }}-table-creations
+        # kubectl available in sparkubi-builder to attach master
+        image: {{ .Values.global.registry }}:sparkubi-builder
+        imagePullPolicy: Always
+        workingDir: /opt/spark/work-dir/blake/spark 
+        # pass REGISTRY environment variable to submit script
+        envFrom:
+        - configMapRef:
+            name: env
+        command:
+        - bash
+        - -c
+        - ./submit.sh -c init uniswap script rated_swaps &&
+            ./submit.sh -c init uniswap script day_swaps
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-partition-updates
+spec:
+  schedule: "0 4 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: spark
+          containers:
+          - name: {{ .Release.Name }}-partition-updates
+            image: {{ .Values.global.registry }}:sparkubi-builder
+            imagePullPolicy: Always
+            workingDir: /opt/spark/work-dir/blake/spark 
+            envFrom:
+            - configMapRef:
+                name: env
+            command:
+            - bash
+            - -c
+            - ./submit.sh -c init uniswap script partition_updates
+

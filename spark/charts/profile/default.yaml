@@ -1,4 +1,6 @@
 build:
+  baseBuild: Skip
+  depBuild: Skip
   coldBuild: PreSync
   hotBuild: PreSync
   baseImage: base

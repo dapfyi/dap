@@ -22,7 +22,6 @@ airflow:
   postgresql:
     persistence:
       enabled: true
-      existingClaim: postgresql-0
   config:
     webserver:
       expose_config: 'True'

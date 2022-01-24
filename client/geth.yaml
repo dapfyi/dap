@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: 2010-09-09
 Parameters:
   GethBuild:
     Type: String
-    Default: geth-alltools-linux-amd64-1.10.12-6c4dc6c3
+    Default: geth-alltools-linux-amd64-1.10.15-8be800ff
     Description: "Change InstanceSize with a `cloudformation update-stack` call to force version update in a running client."
   Image:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>

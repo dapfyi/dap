@@ -1,0 +1,15 @@
+apiVersion: v2
+name: redash
+version: 1.0.0
+dependencies:
+  - name: redash
+    version: ~3.0.0-beta1
+    repository: https://getredash.github.io/contrib-helm-chart
+    import-values:
+      - child: postgresql
+        parent: postgresql
+      - child: redis
+        parent: redis
+      - child: server
+        parent: server
+

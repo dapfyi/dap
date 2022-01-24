@@ -1,23 +1,25 @@
-FROM debian:buster-20210621-slim
+FROM debian:buster-20220228-slim
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
-ARG EKSCTL_VERSION=0.57.0
-# See https://docs.aws.amazon.com/eks/latest/userguide/install-kubectl.html + match k8s default version in eksctl with kubectl.
-ARG KUBECTL_VERSION=1.20.4/2021-04-12
+ARG EKSCTL_VERSION=0.86.0
+# Match k8s default version in eksctl with kubectl (one minor version difference with cluster tolerated).
+# 1. look for "DefaultVersion" (pkg/apis/eksctl.io/v1alpha5/types.go file) in github eksctl release commit
+# 2. pick matching kubectl version among tags https://github.com/kubernetes/kubectl/tags and set below
+ARG KUBECTL_VERSION=1.21.10
+ENV KUBECTL_VERSION $KUBECTL_VERSION
 
+# gettext-base installs envsubst command
 RUN apt-get update && apt-get install -y curl unzip gettext-base && rm -rf /var/lib/apt/lists/*
 
 RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zip && \
     unzip awscliv2.zip && ./aws/install && rm awscliv2.zip
 ENV AWS_PAGER=
 
-RUN curl -L https://github.com/weaveworks/eksctl/releases/download/$EKSCTL_VERSION/eksctl_`uname -s`_amd64.tar.gz | \
+RUN curl -L https://github.com/weaveworks/eksctl/releases/download/v$EKSCTL_VERSION/eksctl_Linux_amd64.tar.gz | \
     tar xz -C /usr/local/bin
 
-RUN curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/$KUBECTL_VERSION/bin/linux/amd64/kubectl && \
-    curl -o kubectl.sha256 https://amazon-eks.s3.us-west-2.amazonaws.com/$KUBECTL_VERSION/bin/linux/amd64/kubectl.sha256 && \
-    [ `openssl sha1 -sha256 kubectl | awk '{print $2}'` = `awk '{print $1}' kubectl.sha256` ] && echo 'SHA-256 sums OK' || exit 1 && \
-    chmod +x kubectl && mv kubectl /usr/local/bin
+RUN curl -LO https://dl.k8s.io/release/v$KUBECTL_VERSION/bin/linux/amd64/kubectl && \
+    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && rm kubectl
 
 RUN curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 

@@ -1,0 +1,91 @@
+{{ if eq .Release.Name "sparkubi" }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: base-image
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.baseBuild }}
+    helm.sh/hook-weight: "-101"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: base-image
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: base-image
+        image: gcr.io/kaniko-project/executor:latest
+        args:
+        - "--context=/mnt"
+        - "--destination={{ .Values.global.registry }}:base"
+        volumeMounts:
+        - name: dockerfile
+          mountPath: /mnt
+      volumes:
+      - name: dockerfile
+        configMap:
+          name: base-dockerfile
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: base-dockerfile
+  annotations:
+    argocd.argoproj.io/hook: {{ .Values.baseBuild }}
+    helm.sh/hook-weight: "-101"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  Dockerfile: |
+    # build Spark distribution from source
+    FROM openjdk:11-jdk-slim AS dist
+    ARG path=/tmp/spark-{{ .Values.sparkVersion }}
+
+    RUN apt update && apt install -y curl && rm -rf /var/cache/apt/*
+
+    RUN curl -L -o $path.tar.gz https://github.com/apache/spark/archive/v{{ .Values.sparkVersion }}.tar.gz && \
+        tar xzvf $path.tar.gz -C /tmp
+
+    RUN export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g" && \
+        $path/dev/make-distribution.sh --name blake-dist \
+            -Phive \
+            -Phive-thriftserver \
+            -Pkubernetes
+
+    # base Spark image referencing artefacts built above
+    FROM openjdk:11-jre-slim
+    ARG path=/tmp/spark-{{ .Values.sparkVersion }}/dist
+
+    RUN set -ex && \
+        sed -i 's/http:\/\/deb.\(.*\)/https:\/\/deb.\1/g' /etc/apt/sources.list && \
+        apt-get update && \
+        ln -s /lib /lib64 && \
+        apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps && \
+        mkdir -p /opt/spark && \
+        mkdir -p /opt/spark/examples && \
+        mkdir -p /opt/spark/work-dir && \
+        touch /opt/spark/RELEASE && \
+        rm /bin/sh && \
+        ln -sv /bin/bash /bin/sh && \
+        echo "auth required pam_wheel.so use_uid" >> /etc/pam.d/su && \
+        chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
+        rm -rf /var/cache/apt/*
+
+    COPY --from=dist $path/jars /opt/spark/jars
+    COPY --from=dist $path/bin /opt/spark/bin
+    COPY --from=dist $path/sbin /opt/spark/sbin
+    COPY --from=dist $path/kubernetes/dockerfiles/spark/entrypoint.sh /opt/
+    COPY --from=dist $path/kubernetes/dockerfiles/spark/decom.sh /opt/
+    COPY --from=dist $path/kubernetes/tests /opt/spark/tests
+
+    ENV SPARK_HOME /opt/spark
+
+    WORKDIR /opt/spark/work-dir
+    RUN chmod g+w /opt/spark/work-dir
+    RUN chmod a+x /opt/decom.sh
+
+    ENTRYPOINT [ "/opt/entrypoint.sh" ]
+
+    USER 185
+{{ end }}
+

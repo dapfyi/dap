@@ -162,10 +162,12 @@ metadata:
 data:
   ETHEREUM_CLIENT: $ETHEREUM_CLIENT
   SUBNET_A: $subnet_a
+  REGISTRY: $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$new-blake
   DATA_BUCKET: $new-blake-$REGION-data-$ACCOUNT
   OTHER_DATA_BUCKET: $other-blake-$REGION-data-$ACCOUNT
   DELTA_BUCKET: $new-blake-$REGION-delta-$ACCOUNT
   OTHER_DELTA_BUCKET: $other-blake-$REGION-delta-$ACCOUNT
+  KUBECTL_VERSION: $KUBECTL_VERSION
 EOF
 
 
@@ -185,14 +187,14 @@ eksctl create iamserviceaccount \
     --approve
 
 cluster_version=`kubectl version --short=true | grep -oP '(?<=Server Version: v)[0-9]+\.[0-9]+'`
-autoscaler_version=`curl https://api.github.com/repos/kubernetes/autoscaler/tags?per_page=100 | \
+autoscaler_version=`curl -s https://api.github.com/repos/kubernetes/autoscaler/tags?per_page=100 | \
     grep -oP "(?<=\"name\": \"cluster-autoscaler-)$cluster_version\.[0-9]+" | \
     head -1`
 
 # Do not add in application layer, e.g. Argo CD.
 # Autoscaler should be part of infrastructure layer for app dependencies on compute capacity.
 helm install \
-    --namespace=kube-system \
+    --namespace kube-system \
     --set clusterName=$new-blake,imageVersion=$autoscaler_version \
     cluster-autoscaler ./aws/helm/cluster-autoscaler
 
@@ -202,7 +204,7 @@ helm install \
 echo "BLAKE ~ metrics server deployment"
 
 # install before last version to avoid the edge case where latest tag release isn't available, yet
-ms_version=`curl https://api.github.com/repos/kubernetes-sigs/metrics-server/tags | \
+ms_version=`curl -s https://api.github.com/repos/kubernetes-sigs/metrics-server/tags | \
     grep -oP '(?<="name": "v)[0-9.]+' | \
     head -2 | tail -1`
 
@@ -229,6 +231,29 @@ kubectl patch deploy argocd-server \
     -n argocd \
     -p '[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--disable-auth"}]' \
     --type json
+
+cat <<EOF | kubectl patch configmap/argocd-cm -n argocd --type merge --patch-file /dev/stdin
+data:
+  configManagementPlugins: |
+    - name: kustomized-helm
+      init:
+        command: ["/bin/sh", "-c"]
+        args: ["helm dependency build"]
+      generate:
+        command: ["/bin/sh", "-c"]
+        args: ["helm template . --name-template \$ARGOCD_APP_NAME --namespace \$ARGOCD_APP_NAMESPACE \
+            \$(for v in \$HELM_VALUES; do printf -- '--values '\$v' '; done) \
+            --set \$PLUGIN_ENV > all.yaml && kustomize build"]
+EOF
+
+
+## Deploy Argo Workflows.
+echo "BLAKE ~ Argo Workflows deployment"
+
+helm repo add argo https://argoproj.github.io/argo-helm
+helm install --namespace argo --create-namespace \
+    --set server.extraArgs={--auth-mode=server} \
+    --set workflow.serviceAccount.create=true wf argo/argo-workflows
 
 
 ## Delete previous cluster release, if any.

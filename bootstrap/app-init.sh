@@ -21,6 +21,7 @@ authenticate_with_last_cluster_created
 read REGION ACCOUNT CLUSTER <<< `kubectl config current-context | awk -F'[:/]' '{print $4,$5,$NF}'`
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$CLUSTER
 
+export ARGOCD_OPTS='--port-forward-namespace argocd'
 # prevent pre-install scripts from getting stuck on pagination in small terminal windows
 export AWS_PAGER=
 

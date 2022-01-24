@@ -19,62 +19,8 @@ kubectl apply view-last-applied configmap -n default env -o yaml | \
 
 
 # Provision volume for Airflow records outside shorter-lived k8s clusters.
-postgresql_volume=$CLUSTER-airflow-postgresql-0
-postgresql_volume_size=8
-
-postgresql_volume_id=`aws ec2 describe-volumes \
-    --filters Name=tag:Name,Values=$postgresql_volume --query Volumes[*].VolumeId --output text`
-
-postgresql_volume_count=`echo $postgresql_volume_id | wc -w`
-
-if [ $postgresql_volume_count -eq 0 ]; then
-
-    postgresql_volume_id=`aws ec2 create-volume \
-        --availability-zone "$REGION"a \
-        --size $postgresql_volume_size \
-        --volume-type gp3 \
-        --tag-specifications "ResourceType=volume,Tags=[{Key=Name,Value=$postgresql_volume}]" \
-        --query VolumeId \
-        --output text`
-
-elif [ $postgresql_volume_count -gt 1 ]; then
-
-    echo "BLAKE ~ expected less than 2 ebs volumes named $postgresql_volume"
-    exit 1
-
-fi
-
-cat <<EOF | kubectl apply -f -
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: postgresql-0
-spec:
-  capacity: 
-    storage: ${postgresql_volume_size}Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  claimRef:
-    name: postgresql-0
-    namespace: airflow
-  awsElasticBlockStore:
-    volumeID: $postgresql_volume_id
-    fsType: xfs
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: postgresql-0
-  namespace: airflow
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: ${postgresql_volume_size}Gi
-  volumeName: postgresql-0
-EOF
+source ../bootstrap/workflow/aws/lib/persistent_volume.sh
+persistent_volume $PG_VOLUME 8 airflow
 
 
 # Create docker registry and buckets.

@@ -1,0 +1,4 @@
+build:
+  # builds of kafka buffer image and dependencies applied on base
+  depBuild: PreSync
+

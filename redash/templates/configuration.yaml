@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-config
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: {{ .Release.Name }}-config
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: {{ .Release.Name }}-config
+        image: "{{ .Values.redash.image.repository }}:{{ .Values.redash.image.tag }}"
+        imagePullPolicy: Always
+        command: [bash, /add-on/config.sh]
+        volumeMounts:
+          - name: config
+            mountPath: /config
+          - name: add-on
+            mountPath: /add-on
+        env:
+        {{- include "redash.env" . | nindent 10 }}
+          - name: REDASH_COOKIE_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: placeholder
+                key: cookieSecret
+          - name: REDASH_SECRET_KEY
+            valueFrom:
+              secretKeyRef:
+                name: placeholder
+                key: secretKey
+        envFrom:
+        {{- include "redash.envFrom" . | nindent 10 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "redash.fullname" . }}
+        - name: add-on
+          configMap:
+            name: {{ .Release.Name }}-config
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    helm.sh/hook-weight: "0"
+    helm.sh/hook-delete-policy: before-hook-creation
+data:
+  config.sh: |
+    #!/bin/bash
+    source /config/dynamicenv.sh
+
+    # new install if upgrade fails: most likely, tables don't exist
+    /app/manage.py db upgrade || 
+        (/app/manage.py database create_tables && /app/manage.py db upgrade)
+
+    admin_mail=admin
+    # dummy admin user necessary to register new data sources might already exist
+    /app/manage.py users create_root $admin_mail admin --password admin ||
+        echo "config didn't create a new $admin_mail user"
+
+    ds=SparkUBI
+    if ./manage.py ds list | grep -qvP '(?<=^Name: )'$ds'$'; then
+        /app/manage.py ds new --type=hive \
+            --options='{"host": "sparkubi-thrift.spark.svc.cluster.local"}' $ds
+    fi
+

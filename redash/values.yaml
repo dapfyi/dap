@@ -1,0 +1,15 @@
+redash:
+  redash:
+    # authentication layer at cluster level
+    existingSecret: placeholder
+  postgresql:
+    postgresqlPassword: pg
+    persistence:
+      enabled: true
+    volumePermissions:
+      enabled: true
+  redis:
+    master:
+      persistence:
+        enabled: false
+

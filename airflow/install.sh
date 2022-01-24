@@ -1,7 +1,6 @@
 #!/bin/bash
 source init.sh
 
-export ARGOCD_OPTS='--port-forward-namespace argocd'
 argocd app create airflow \
     --repo $REPO \
     --revision $BRANCH \
@@ -15,5 +14,6 @@ argocd app create airflow \
     -p airflow.defaultAirflowRepository=$REGISTRY/airflow \
     -p airflow.dags.gitSync.repo=$REPO \
     -p airflow.dags.gitSync.branch=$BRANCH \
-    -p airflow.config.logging.remote_base_log_folder=s3://$CLUSTER-$REGION-airflow-$ACCOUNT
+    -p airflow.config.logging.remote_base_log_folder=s3://$CLUSTER-$REGION-airflow-$ACCOUNT \
+    -p airflow.postgresql.persistence.existingClaim=$PG_VOLUME
 

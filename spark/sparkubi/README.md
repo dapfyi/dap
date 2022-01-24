@@ -1,5 +1,5 @@
 # SparkUBI
-A Spark extension library to process blockchain integers with arbitrary precision. 
+A Spark extension to process blockchain integers with arbitrary precision. 
 
 With SparkUBI, you can transform your cluster into a precise off-chain computation engine leveraging the power of Apache Spark.
 
