@@ -5,7 +5,7 @@ import java.math.{BigInteger, MathContext}
 import scala.language.implicitConversions
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.catalyst.expressions.Expression
-import Conf.{MC, Simplify}
+import Conf.{MC, Simplify, Rescale}
 
 object Typecast {
 
@@ -52,21 +52,21 @@ object Typecast {
     implicit def stringToUbi(s: String): UBI = s match {
 
         case ubiPattern(integer, scale, bits) => 
-            UBI(BD(integer), scale.toInt, bits.toInt)
+            UBI(Rescale, BD(integer), scale.toInt, bits.toInt)
 
         case sciPattern(integer, scale) =>
-             UBI(BD(integer), scale.toInt, 0)
+             UBI(Rescale, BD(integer), scale.toInt, 0)
 
         case intPattern(integer) =>
-            UBI(BD(integer), 0, 0)
+            UBI(Rescale, BD(integer), 0, 0)
 
         case decPattern(dec) =>
             val n = BD(dec)
-            UBI(BD(n.bigDecimal.unscaledValue), n.scale, 0)
+            UBI(Rescale, BD(n.bigDecimal.unscaledValue), n.scale, 0)
 
         case doublePattern(double) => 
             val n = BD(double)
-            UBI(BD(n.bigDecimal.unscaledValue), n.scale, 0)
+            UBI(Rescale, BD(n.bigDecimal.unscaledValue), n.scale, 0)
 
     }
 

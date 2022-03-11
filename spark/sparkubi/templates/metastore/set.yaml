@@ -19,6 +19,9 @@ spec:
       - name: metastore
         image: {{ .Values.global.registry }}:metastore
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 600Mi
         command:
         - /bin/sh
         - -c

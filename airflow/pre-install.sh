@@ -28,6 +28,26 @@ airflow_repo=$CLUSTER/airflow
 aws ecr describe-repositories --repository-names $airflow_repo ||
     aws ecr create-repository --repository-name $airflow_repo
 
+cat <<EOF | aws ecr put-lifecycle-policy --repository-name $airflow_repo \
+    --lifecycle-policy-text file:///dev/stdin
+{
+   "rules": [
+       {
+           "rulePriority": 1,
+           "selection": {
+               "tagStatus": "untagged",
+               "countType": "sinceImagePushed",
+               "countUnit": "days",
+               "countNumber": 30
+           },
+           "action": {
+               "type": "expire"
+           }
+       }
+   ]
+}
+EOF
+
 airflow_bucket=$CLUSTER-$REGION-airflow-$ACCOUNT
 aws s3api head-bucket --bucket $airflow_bucket || aws s3 mb s3://$airflow_bucket
 echo "s3://$airflow_bucket"

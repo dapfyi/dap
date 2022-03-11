@@ -16,7 +16,7 @@ object UBI {
         bits: Int
     ): UBI = if (rescale && ubi.scale < 0) UBI(
         BD(ubi.bigDecimal.unscaledValue), 
-        scale + ubi.scale, 
+        scale + ubi.scale,
         bits
     ) else UBI(ubi, scale, bits)
 

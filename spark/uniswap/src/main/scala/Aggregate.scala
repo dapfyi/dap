@@ -171,7 +171,7 @@ object Aggregate extends App with Spark {
             costSeries ++
             crossReferences
         : _*).higherLevelAggregates
-
+    
     sink(resolve(poolStats))
 
 }

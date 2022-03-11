@@ -9,6 +9,8 @@ redash:
     volumePermissions:
       enabled: true
   redis:
+    # A new and automatically generated random password can crash Redash if it isn't specified.
+    password: redash
     master:
       persistence:
         enabled: false

@@ -2,3 +2,5 @@ build:
   coldBuild: Skip
   hotBuild: Skip
 
+metadata: Skip
+

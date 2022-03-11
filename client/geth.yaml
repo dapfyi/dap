@@ -1,9 +1,10 @@
 AWSTemplateFormatVersion: 2010-09-09
+
 Parameters:
   GethBuild:
     Type: String
-    Default: geth-alltools-linux-amd64-1.10.15-8be800ff
-    Description: "Change InstanceSize with a `cloudformation update-stack` call to force version update in a running client."
+    Default: geth-alltools-linux-amd64-1.10.16-20356e57
+    Description: "Change InstanceSize in a `cloudformation update-stack` call to force version update in a running client."
   Image:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-kernel-5.10-hvm-x86_64-gp2
@@ -13,10 +14,10 @@ Parameters:
     Description: "'large' for cost-optimized node, 'xlarge' to sync twice faster, '4xlarge' recommended to extract contract events"
   HotVolumeSize:
     Type: Number
-    Default: 200
+    Default: 300
   ColdVolumeSize:
     Type: Number
-    Default: 300
+    Default: 400
   ColdVolumeType:
     Type: String
     Default: gp3
@@ -26,10 +27,11 @@ Parameters:
   NetRestrict:
     Type: String
     Default: false
-    Description: allow peers from AWS networks only to cut Data Transfer costs (unsecure)
+    Description: allow peers from AWS networks only (unsecure)
     AllowedValues:
       - true
       - false
+
 Resources:
   HotVolume:
     Type: AWS::EC2::Volume
@@ -105,6 +107,7 @@ Resources:
               - ssmmessages:OpenDataChannel
               - ec2:DescribeVolumes
               - ec2:DescribeInstanceStatus
+              - ec2:DescribeNetworkInterfaceAttribute
             Resource:
               - "*"
           - Effect: Allow
@@ -117,11 +120,30 @@ Resources:
             Condition:
               StringLike:
                 "ec2:ResourceTag/Name": !Sub ${AWS::StackName}*
+          - Effect: Allow
+            Action:
+              - ec2:AssociateAddress
+              - ec2:AttachNetworkInterface
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:*
+            Condition:
+              StringEquals:
+                "ec2:ResourceTag/Name": !Sub ${AWS::StackName}
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref InstanceRole
+  EIP:
+    Type: AWS::EC2::EIP
+    Properties: 
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Ref AWS::StackName
+  # Do not add a network interface in launch template (attach at bootstrap), otherwise:
+  # - AWS no longer auto-assigns a public IP, breaking init scripts before EIP is associated
+  # - security groups cannot be specified in the launch template itself
   LaunchTemplate:
     Type: AWS::EC2::LaunchTemplate
     Properties:
@@ -133,8 +155,6 @@ Resources:
         SecurityGroupIds:
           - !ImportValue blake-network-listener-sg
           - !ImportValue blake-network-discovery-sg
-          - !ImportValue blake-network-http-sg
-          - !ImportValue blake-network-websocket-sg
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -172,6 +192,27 @@ Resources:
             - bootstrap
         bootstrap:
           files:
+            /tmp/bootstrap/attach-network-interfaces.sh:
+              content: !Sub |
+                #!/bin/bash
+                set -eux
+                exec >> /var/log/bootstrap.log 2>&1
+
+                instance_id=`curl http://169.254.169.254/latest/meta-data/instance-id`
+
+                aws ec2 associate-address --instance-id $instance_id --allocation-id $EIP
+
+                detached_interface () {
+                    local attachment_id=`aws ec2 describe-network-interface-attribute \
+                        --network-interface-id $ENI --attribute attachment \
+                        --query Attachment.AttachmentId --output text`
+                    [ $attachment_id = None ]
+                }
+                until detached_interface; do sleep 1; done
+                aws ec2 attach-network-interface --device-index 1 --instance-id $instance_id \
+                    --network-interface-id $ENI
+
+              mode: "000755"
             /tmp/bootstrap/mount-volumes.sh:
               content: !Sub |
                 #!/bin/bash
@@ -239,7 +280,10 @@ Resources:
                     --ws \
                     --ws.api eth \
                     --ws.addr 0.0.0.0 \
-                    --netrestrict $netrestrict
+                    --netrestrict $netrestrict \
+                    --metrics \
+                    --pprof \
+                    --pprof.addr=0.0.0.0
               mode: "000755"
             /etc/systemd/system/geth.service:
               content: |
@@ -256,15 +300,27 @@ Resources:
                 export PATH=$PATH:/usr/local/bin/${GethBuild}
               mode: "000755"
           commands:
-            00_mount_volumes:
+            00_attach_network_interfaces:
+              command: "/tmp/bootstrap/attach-network-interfaces.sh"
+              env:
+                AWS_DEFAULT_REGION: !Ref "AWS::Region"
+                EIP: !GetAtt EIP.AllocationId
+                ENI: !ImportValue blake-network-eth-eni
+            01_mount_volumes:
               command: "/tmp/bootstrap/mount-volumes.sh"
               env:
                 AWS_DEFAULT_REGION: !Ref "AWS::Region"
-            01_download_geth:
+            02_download_geth:
               test: !Sub "test ! -d /usr/local/bin/${GethBuild}"
               command: "/tmp/bootstrap/download-geth.sh"
-            02_start:
+            03_start:
               command: |
                 systemctl daemon-reload
                 systemctl enable geth --now
+
+Outputs:
+  PublicIP:
+    Value: !Ref EIP
+    Export:
+      Name: !Sub ${AWS::StackName}-public-ip
 

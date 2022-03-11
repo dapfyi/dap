@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -120,6 +121,30 @@ Resources:
           IpProtocol: tcp
           ToPort: 8546
       VpcId: !Ref VPC
+  MetricsSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupName: !Sub ${AWS::StackName}-metrics
+      GroupDescription: !Sub ${AWS::StackName}-metrics
+      SecurityGroupIngress:
+        - CidrIp: 192.168.0.0/17
+          FromPort: 6060
+          IpProtocol: tcp
+          ToPort: 6060
+      VpcId: !Ref VPC
+  EthENI:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      Tags:
+        # tag authorizing ec2:AttachNetworkInterface in blake-geth stack
+        - Key: Name
+          Value: blake-geth
+      GroupSet:
+        - !GetAtt HttpSG.GroupId
+        - !GetAtt WebSocketSG.GroupId
+        - !GetAtt MetricsSG.GroupId
+      SubnetId: !Ref SubnetA
+
 Outputs:
   SubnetA:
     Value: !Ref SubnetA
@@ -137,12 +162,12 @@ Outputs:
     Value: !GetAtt DiscoverySG.GroupId
     Export:
       Name: !Sub ${AWS::StackName}-discovery-sg
-  HttpSG:
-    Value: !GetAtt HttpSG.GroupId
+  EthENI:
+    Value: !GetAtt EthENI.Id
     Export:
-      Name: !Sub ${AWS::StackName}-http-sg
-  WebSocketSG:
-    Value: !GetAtt WebSocketSG.GroupId
+      Name: !Sub ${AWS::StackName}-eth-eni
+  EthIP:
+    Value: !GetAtt EthENI.PrimaryPrivateIpAddress
     Export:
-      Name: !Sub ${AWS::StackName}-websocket-sg
+      Name: !Sub ${AWS::StackName}-eth-ip
 

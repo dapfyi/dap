@@ -42,9 +42,7 @@ object Fraction {
                           lowDen.copy(ubi = lowDen.ubi / gcd), t1 )
 
                     }
-                    if(Profiling) 
-                        Log.info(s"""{"gcd":$gcdInt,"search":${searchTs - t1},"""
-                        + s""""compute":${System.nanoTime - searchTs}}""")
+                    if(Profiling) Log.gcd(gcdInt, searchTs, t1)
                     t
 
                  } else (lowNum, lowDen, t1)
@@ -52,19 +50,23 @@ object Fraction {
             } else (num, den, System.nanoTime)
         val t2 = System.nanoTime
 
-        // simplification always applied unless all disabled: scale
-        val scales = Seq(simpleNum, simpleDen).map(_.scale).sorted
-        val (numScale, denScale) = if (simpleNum.scale == scales.head) 
-            (0, simpleDen.scale - simpleNum.scale) else 
-            (simpleNum.scale - simpleDen.scale, 0)
+        // simplification always applied unless all disabled:
+        // should contain 10 powers within cache in "-" and "+" operations
+        val (numScale, denScale) = scaleSimplification(simpleNum, simpleDen)
         val t3 = System.nanoTime
 
         val f = Fraction(
             simpleNum.copy(scale = numScale),
             simpleDen.copy(scale = denScale))
-        Log.stats("SF", Fraction(num, den), f, System.nanoTime - t0, 
-            t1 - t0, t2 - t1, t3 - t2)
+        Log.stats("SF", num, den, f, t0, t1, t2, t3)
         f
+    }
+
+    def scaleSimplification(num: UBI, den: UBI) = {
+        val scales = Seq(num, den).map(_.scale).sorted
+        if (num.scale == scales.head) 
+            (0, den.scale - num.scale) 
+        else (num.scale - den.scale, 0)
     }
 
 }

@@ -22,6 +22,8 @@ read REGION ACCOUNT CLUSTER <<< `kubectl config current-context | awk -F'[:/]' '
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$CLUSTER
 
 export ARGOCD_OPTS='--port-forward-namespace argocd'
+# export variable referenced in envsubst pipes
+export REGION=$REGION
 # prevent pre-install scripts from getting stuck on pagination in small terminal windows
 export AWS_PAGER=
 

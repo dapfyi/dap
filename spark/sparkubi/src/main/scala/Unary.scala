@@ -3,29 +3,41 @@ package d3centr.sparkubi
 import java.math.BigInteger.ONE
 import java.lang.ArithmeticException
 import Typecast.{BD, BD2, BD10}
+import Cache.{ScalePowers, BitFractions}
 
 object Unary {
 
     def resolve(f: Fraction): BigDecimal = if (f == null) null else {
+        val t0 = System.nanoTime
+
         val decimals = f.numerator.scale - f.denominator.scale
-        val scalingFactor = BD10.pow(-decimals)
+        val scalingFactor = ScalePowers.getOrElse(decimals, BD10.pow(-decimals))
+        val t1 = System.nanoTime
 
         val bits = f.numerator.bits - f.denominator.bits
-        val bitFraction = BD2.pow(bits)
+        val bitFraction = BitFractions.getOrElse(bits, BD2.pow(bits))
+        val t2 = System.nanoTime
 
         lazy val opString = s"${f.numerator.ubi} / ${f.denominator.ubi} " +
             s"* $scalingFactor / $bitFraction"
 
         try {
-            // do not call decode to return the most precise decimal number
-            f.numerator.ubi / f.denominator.ubi * scalingFactor / bitFraction
+
+            val child =  // do not call decode to return the most precise result
+                f.numerator.ubi / f.denominator.ubi * scalingFactor / bitFraction
+            val t3 = System.nanoTime
+            Log.unary("resolve", f, t0, t1, t2, t3)
+            child
+
         } catch {
+
             case e: ArithmeticException => 
                 Log.error(s"ArithmeticException attempting to resolve $opString")
                 throw e
             case e: Throwable => 
                 Log.error(s"Exception attempting to resolve $opString")
                 throw e
+
         }
     }
 
@@ -33,11 +45,21 @@ object Unary {
        use with caution: less accurate than resolve
     */
     def resolveBitwise(f: Fraction): Option[BigDecimal] = {
+        val t0 = System.nanoTime
+
         val (num, den) = decode(f)
+        val t1 = System.nanoTime
+
         val decimals = num.scale - den.scale
-        val scalingFactor = BD10.pow(-decimals)
-        if(den.ubi.signum == 0) None 
-        else Some(num.ubi / den.ubi * scalingFactor)
+        val scalingFactor = ScalePowers.getOrElse(decimals, BD10.pow(-decimals))
+        val t2 = System.nanoTime
+
+        val child = if(den.ubi.signum == 0) None 
+            else Some(num.ubi / den.ubi * scalingFactor)
+        val t3 = System.nanoTime
+
+        Log.unary("resolveBitwise", f, t0, t1, t2, t3)
+        child
     }
 
     def decode(f: Fraction): Tuple2[UBI, UBI] = (

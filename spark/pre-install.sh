@@ -36,14 +36,35 @@ kubectl apply view-last-applied configmap -n default env -o yaml | \
     kubectl apply -f -
 
 
-# Create docker registry and sink bucket.
-spark_repo=$CLUSTER/spark
-aws ecr describe-repositories --repository-names $spark_repo ||
-    aws ecr create-repository --repository-name $spark_repo
+# Create sink bucket and docker registry.
 
 delta_bucket=$CLUSTER-$REGION-delta-$ACCOUNT
 aws s3api head-bucket --bucket $delta_bucket || aws s3 mb s3://$delta_bucket
 echo "s3://$delta_bucket"
+
+spark_repo=$CLUSTER/spark
+aws ecr describe-repositories --repository-names $spark_repo ||
+    aws ecr create-repository --repository-name $spark_repo
+
+cat <<EOF | aws ecr put-lifecycle-policy --repository-name $spark_repo \
+    --lifecycle-policy-text file:///dev/stdin
+{
+   "rules": [
+       {
+           "rulePriority": 1,
+           "selection": {
+               "tagStatus": "untagged",
+               "countType": "sinceImagePushed",
+               "countUnit": "days",
+               "countNumber": 30
+           },
+           "action": {
+               "type": "expire"
+           }
+       }
+   ]
+}
+EOF
 
 
 # Provision volume for metastore persistence outside shorter-lived k8s clusters.

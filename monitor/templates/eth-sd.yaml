@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eth-sd
+data:
+  eth-targets.json: |
+    [
+      {
+        "labels": {
+          "job": "eth-nodes"
+        },
+        "targets": [
+          "{{ .Values.ethIp }}:6060"
+        ]
+      }
+    ]
+

@@ -4,6 +4,10 @@ source aws/lib/env.sh
 
 ETHEREUM_CLIENT=blake-geth
 
+ETHEREUM_IP=`aws cloudformation list-exports \
+    --query "Exports[?Name=='blake-network-eth-ip'].Value" \
+    --output text`
+
 subnets=`aws cloudformation list-exports \
     --query "Exports[?starts_with(Name, 'blake-network-subnet-')].[Name,Value]" \
     --output text`
@@ -52,7 +56,7 @@ fi
 echo "BLAKE ~ creating $new cluster"
 
 # Variables interpolated by envsubst in json policy must be exported beforehand, e.g. export new=color. 
-cat aws/iam/node-policy.json | envsubst | 
+envsubst < aws/iam/node-policy.json | 
     aws iam create-policy --policy-name $new-blake-node --policy-document file:///dev/stdin
 
 policies="
@@ -124,7 +128,13 @@ cluster_definition="
     desiredCapacity: 0
     minSize: 0
     maxSize: 5
+    # labels and taints must also be tagged to scale from 0
+    taints:
+      - key: spark
+        value: exec
+        effect: NoSchedule
     tags:
+      k8s.io/cluster-autoscaler/node-template/taint/spark: 'exec:NoSchedule'
       k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage: 24Gi
     iam: $policies
 
@@ -134,22 +144,30 @@ echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin
 
 echo "BLAKE ~ tag propagation to autoscaling groups"
-# could be automatically handled by AWS at some point
+# required to scale from 0, could be automatically handled by AWS at some point
+# keep track of feature in parity with unmanaged nodegroups
+# https://eksctl.io/usage/eks-managed-nodes/#feature-parity-with-unmanaged-nodegroups
+
 asg_propagation_tags="
     k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage
 "
 nodegroups=`aws eks list-nodegroups --cluster-name $new-blake --no-paginate \
     --query nodegroups --output text`
+
 for ng in $nodegroups; do
+
     asg=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
         --query nodegroup.resources.autoScalingGroups --output text`
+
     ng_tags=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
         --query nodegroup.tags --output table | tr -d ' '`
+
     for tag in $asg_propagation_tags; do
         value=`echo "$ng_tags" | awk -F'|' '$2=="'$tag'"{print $3}'`
         aws autoscaling create-or-update-tags --tags \
             ResourceId=$asg,ResourceType=auto-scaling-group,Key=$tag,Value=$value,PropagateAtLaunch=true
     done
+
 done
 
 # Create global variables.
@@ -161,13 +179,15 @@ metadata:
   namespace: default
 data:
   ETHEREUM_CLIENT: $ETHEREUM_CLIENT
+  ETHEREUM_IP: $ETHEREUM_IP
   SUBNET_A: $subnet_a
   REGISTRY: $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$new-blake
+  KUBECTL_VERSION: $KUBECTL_VERSION
+  LOG_BUCKET: $new-blake-$REGION-log-$ACCOUNT
   DATA_BUCKET: $new-blake-$REGION-data-$ACCOUNT
   OTHER_DATA_BUCKET: $other-blake-$REGION-data-$ACCOUNT
   DELTA_BUCKET: $new-blake-$REGION-delta-$ACCOUNT
   OTHER_DELTA_BUCKET: $other-blake-$REGION-delta-$ACCOUNT
-  KUBECTL_VERSION: $KUBECTL_VERSION
 EOF
 
 
@@ -187,8 +207,8 @@ eksctl create iamserviceaccount \
     --approve
 
 cluster_version=`kubectl version --short=true | grep -oP '(?<=Server Version: v)[0-9]+\.[0-9]+'`
-autoscaler_version=`curl -s https://api.github.com/repos/kubernetes/autoscaler/tags?per_page=100 | \
-    grep -oP "(?<=\"name\": \"cluster-autoscaler-)$cluster_version\.[0-9]+" | \
+autoscaler_version=`curl -s https://api.github.com/repos/kubernetes/autoscaler/tags?per_page=100 |
+    grep -oP "(?<=\"name\": \"cluster-autoscaler-)$cluster_version\.[0-9]+" |
     head -1`
 
 # Do not add in application layer, e.g. Argo CD.
@@ -204,8 +224,8 @@ helm install \
 echo "BLAKE ~ metrics server deployment"
 
 # install before last version to avoid the edge case where latest tag release isn't available, yet
-ms_version=`curl -s https://api.github.com/repos/kubernetes-sigs/metrics-server/tags | \
-    grep -oP '(?<="name": "v)[0-9.]+' | \
+ms_version=`curl -s https://api.github.com/repos/kubernetes-sigs/metrics-server/tags |
+    grep -oP '(?<="name": "v)[0-9.]+' |
     head -2 | tail -1`
 
 kubectl apply \

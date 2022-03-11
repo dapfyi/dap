@@ -4,6 +4,7 @@ import java.math.MathContext
 
 import Conf.{MC, Rescale, Simplify}
 import Typecast.{BD, BD2, BD10}
+import Cache.ScalePowers
 
 object Arithmetic {
 
@@ -17,7 +18,7 @@ object Arithmetic {
         val child = Fraction(Simplify,
             multiply(left.numerator, right.numerator),
             multiply(left.denominator, right.denominator))
-        Log.stats("M", left, right, child, System.nanoTime - t0)
+        Log.stats("M", left, right, child, t0)
         child
     }
 
@@ -26,7 +27,7 @@ object Arithmetic {
         val child = Fraction(Simplify,
             multiply(left.numerator, right.denominator),
             multiply(left.denominator, right.numerator))
-        Log.stats("D", left, right, child, System.nanoTime - t0)
+        Log.stats("D", left, right, child, t0)
         child
     }
 
@@ -38,8 +39,7 @@ object Arithmetic {
         val t2 = System.nanoTime
         val child = Fraction(Simplify, numerator, denominator)
         val t3 = System.nanoTime
-        Log.stats("A", left, right, child, System.nanoTime - t0,
-            t1 - t0, t2 - t1, t3 - t2)
+        Log.stats("A", left, right, child, t0, t1, t2, t3)
         child
     }
 
@@ -51,8 +51,7 @@ object Arithmetic {
         val t2 = System.nanoTime
         val child = Fraction(Simplify, numerator, denominator)
         val t3 = System.nanoTime
-        Log.stats("S", left, right, child, System.nanoTime - t0,
-            t1 - t0, t2 - t1, t3 - t2)
+        Log.stats("S", left, right, child, t0, t1, t2, t3)
         child
     }
 
@@ -103,18 +102,38 @@ object Arithmetic {
         }
     }
 
-    def scale(ubi: UBI): BigDecimal = scale(ubi.ubi, ubi.scale)
-    def scale(ubi: BigDecimal, scale: Int): BigDecimal = ubi * BD10.pow(-scale)
+    def scale(ubi: UBI): BigDecimal = {
+        val t0 = System.nanoTime
+        val child = scale(ubi.ubi, ubi.scale)
+        val t1 = System.nanoTime
+        Log.fn("scale", t0, t1)
+        child
+    }
+    def scale(ubi: BigDecimal, scale: Int): BigDecimal = {
+        val t0 = System.nanoTime
+        // BD10.pow(-scale) is expensive, use cache outside edge cases
+        val factor = ScalePowers.getOrElse(scale, BD10.pow(-scale))
+        val t1 = System.nanoTime
+        val child = ubi * factor
+        val t2 = System.nanoTime
+        Log.scale("scale2", scale, t0, t1, t2)
+        child
+    }
 
     def operate(left: UBI, right: UBI, op: (BigDecimal, BigDecimal) => BigDecimal, 
         mc: MathContext = MC): UBI = {
+        val t0 = System.nanoTime
         val result = op(scale(left), scale(right))
-        UBI(
+        val t1 = System.nanoTime
+        val child = UBI(
             Rescale, 
             BD(mc, result.bigDecimal.unscaledValue), 
             result.scale, 
             left.bits
         ) 
+        val t2 = System.nanoTime
+        Log.fn("operate", t0, t1, t2)
+        child
     }
 
 }

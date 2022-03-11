@@ -147,6 +147,7 @@ data:
         --conf spark.sql.streaming.stateStore.providerClass=$STATE_STORE \
         --conf spark.kubernetes.executor.podTemplateFile=/mnt/pod-template.yaml \
         --conf spark.sql.extensions=d3centr.sparkubi.Extensions \
+        --conf spark.sql.hive.thriftServer.singleSession=true \
         --conf spark.driver.blake.epoch=${epoch:-"-1"} \
         --conf spark.driver.blake.agg.date=${agg_date:-"0000-00-00"} \
         /opt/spark/jars/$app.jar
@@ -161,6 +162,11 @@ data:
         resources:
           requests:
             ephemeral-storage: 6Gi
+      tolerations:
+      - key: spark
+        operator: Equal
+        value: exec
+        effect: NoSchedule
 ---
 apiVersion: batch/v1
 kind: Job
@@ -195,7 +201,7 @@ spec:
         env: $env
         resources:
           requests:
-            memory: 700Mi
+            memory: 1Gi
             cpu: 1
       volumes:
       - name: command

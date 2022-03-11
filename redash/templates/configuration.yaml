@@ -67,7 +67,7 @@ data:
         echo "config didn't create a new $admin_mail user"
 
     ds=SparkUBI
-    if ./manage.py ds list | grep -qvP '(?<=^Name: )'$ds'$'; then
+    if ! ./manage.py ds list | grep -qP '(?<=^Name: )'$ds'$'; then
         /app/manage.py ds new --type=hive \
             --options='{"host": "sparkubi-thrift.spark.svc.cluster.local"}' $ds
     fi
