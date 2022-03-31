@@ -2,7 +2,7 @@
 
 cluster=$1
 if [ -z $cluster ]; then 
-    echo 'Cluster name argument is missing, e.g. run `./cleanup.sh {blue|green}-blake`.'
+    echo 'Cluster name argument is missing, e.g. run `./cleanup.sh {blue|green}-dap`.'
     exit 1
 fi
 
@@ -12,7 +12,7 @@ read -p "Are you sure? Type YES to confirm or any character to exit: "
 if [[ $REPLY =~ ^YES$ ]]; then
 
     source ../bootstrap/workflow/aws/lib/env.sh
-    echo "BLAKE ~ deleting stateful Airflow resources tied to $cluster cluster"
+    echo "DaP ~ deleting stateful Airflow resources tied to $cluster cluster"
 
     airflow_bucket=$cluster-$REGION-airflow-$ACCOUNT
     data_bucket=$cluster-$REGION-data-$ACCOUNT

@@ -1,5 +1,5 @@
 
-class=blake.uniswap.Swaps
+class=fyi.dap.uniswap.Swaps
 
 EXE_MEM=9g
 EXE_COR=1

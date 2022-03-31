@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.sql.catalyst.expressions.{Expression, AttributeReference, Literal}

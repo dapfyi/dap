@@ -1,6 +1,6 @@
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.apache.spark.SparkConf
-import blake.uniswap.Compute.settings
+import fyi.dap.uniswap.Compute.settings
 import org.scalatest.Suite
 
 trait TestingBase extends DataFrameSuiteBase { self: Suite =>
@@ -12,7 +12,7 @@ trait TestingBase extends DataFrameSuiteBase { self: Suite =>
             set("spark.ui.enabled", "false").
             set("spark.app.id", appID).
             set("spark.driver.host", "localhost").
-            set("spark.sql.extensions", "d3centr.sparkubi.Extensions").
+            set("spark.sql.extensions", "fyi.dap.sparkubi.Extensions").
             setAll(settings)
     }
 

@@ -1,8 +1,8 @@
 import org.scalatest.FunSuite
 import org.apache.spark.sql.functions._
-import blake.uniswap.{Token, Base}
-import blake.uniswap.Convert._
-import d3centr.sparkubi.functions._
+import fyi.dap.uniswap.{Token, Base}
+import fyi.dap.uniswap.Convert._
+import fyi.dap.sparkubi.functions._
 
 class ConvertSuite extends FunSuite with TestingBase {
 

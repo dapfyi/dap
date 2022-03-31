@@ -45,7 +45,7 @@ spec:
     spec:
       containers:
       - args:
-        - bin/kafka-server-start.sh /opt/blake/kafka/config/server.properties
+        - bin/kafka-server-start.sh /opt/dap/kafka/config/server.properties
         image: {{ .Values.global.registry }}:kafka
         imagePullPolicy: Always
         name: {{ .Release.Name }}-kafka
@@ -63,9 +63,9 @@ spec:
           protocol: TCP
         resources:
           requests:
-            memory: 730Mi
+            memory: 600Mi
         volumeMounts:
-        - mountPath: /opt/blake/kafka/config/server.properties
+        - mountPath: /opt/dap/kafka/config/server.properties
           name: kafka-config
           subPath: server.properties
         - mountPath: /mnt/kafka-logs
@@ -104,5 +104,5 @@ spec:
           protocol: TCP
         resources:
           requests:
-            memory: 170Mi
+            memory: 75Mi
 

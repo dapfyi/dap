@@ -1,9 +1,9 @@
-package blake.uniswap
+package fyi.dap.uniswap
 
 import org.apache.spark.sql.types.{DataType, StructType}
 import org.apache.spark.sql.{DataFrame, Column}
 import org.apache.spark.sql.functions._
-import d3centr.sparkubi.functions._
+import fyi.dap.sparkubi.functions._
 
 object Source extends Spark {
     import spark.implicits._

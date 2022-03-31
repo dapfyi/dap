@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import org.apache.spark.sql.Column
 import org.apache.spark.sql.catalyst.expressions.aggregate.DeclarativeAggregate

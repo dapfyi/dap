@@ -1,7 +1,7 @@
 import org.apache.spark.sql.{DataFrame, Column}
 import org.apache.spark.sql.functions.expr
-import d3centr.sparkubi.Typecast._
-import d3centr.sparkubi.Unary.resolve
+import fyi.dap.sparkubi.Typecast._
+import fyi.dap.sparkubi.Unary.resolve
 
 class FunctionSuite extends Spark {
 

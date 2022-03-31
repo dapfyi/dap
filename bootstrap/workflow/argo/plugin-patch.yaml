@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  configManagementPlugins: |
+    - name: kustomized-helm
+      init:
+        command: ["/bin/sh", "-c"]
+        args: ["helm dependency build"]
+      generate:
+        command: ["/bin/sh", "-c"]
+        args: ["helm template . --name-template $ARGOCD_APP_NAME -n $ARGOCD_APP_NAMESPACE \
+            $(for v in $HELM_VALUES; do printf -- '--values '$v' '; done) \
+            --set $DYNAMIC_VAR > all.yaml && kustomize build"]
+

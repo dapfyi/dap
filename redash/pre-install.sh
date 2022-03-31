@@ -1,7 +1,7 @@
 #!/bin/bash
 source init.sh
 
-echo 'BLAKE ~ running Redash pre-install'
+echo 'DaP ~ running Redash pre-install'
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -19,5 +19,5 @@ kubectl apply view-last-applied configmap -n default env -o yaml | \
 source ../bootstrap/workflow/aws/lib/persistent_volume.sh
 persistent_volume $PG_VOLUME 8 redash
 
-echo 'BLAKE ~ stateful Redash resources provisioned'
+echo 'DaP ~ stateful Redash resources provisioned'
 

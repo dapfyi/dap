@@ -1,5 +1,5 @@
 import org.apache.spark.sql.{DataFrame, Column}
-import d3centr.sparkubi.functions._
+import fyi.dap.sparkubi.functions._
 
 class ScalaSQLSuite extends Spark {
     import spark.implicits._

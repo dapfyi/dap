@@ -2,9 +2,9 @@
 source aws/lib/env.sh
 
 if [ -z $1 ]; then
-    cluster=`eksctl get cluster | egrep -o 'blue-blake|green-blake'`
+    cluster=`eksctl get cluster | egrep -o 'blue-dap|green-dap'`
     if [ `echo "$cluster" | wc -l` -ne 1 ]; then
-        echo "Found more or less than a single blake cluster running: skipping script due to ambiguous dependencies."
+        echo "Found more or less than a single DaP cluster running: skipping script due to ambiguous dependencies."
         echo "Alternatively, pass explicit cluster name to destroy as a single argument."
         exit 1
     fi

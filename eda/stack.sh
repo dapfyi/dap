@@ -57,11 +57,11 @@ name_arg="$K=Name,$V=$Name"
 if [[ $template == *EMR* ]]; then
 
     parameters="$K=EMRVersion,$V=$EMRVersion $K=InstanceType,$V=$InstanceType"
-    stack_name=blake-$Name-emr-`tr . - <<< $InstanceType`
+    stack_name=dap-$Name-emr-`tr . - <<< $InstanceType`
 
 else
 
-    stack_name=blake-$Name-`cut -d. -f1 <<< $template`
+    stack_name=dap-$Name-`cut -d. -f1 <<< $template`
 
 fi
 

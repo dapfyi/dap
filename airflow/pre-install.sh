@@ -7,7 +7,7 @@ source init.sh
 # Resources below have their own lifecycle due to external parameters or historical data.
 # See airflow/cleanup.sh to delete aws resources AND data (at your discretion).
 
-echo 'BLAKE ~ running Airflow pre-install'
+echo 'DaP ~ running Airflow pre-install'
 
 kubectl create namespace airflow --dry-run=client -o yaml | kubectl apply -f -
 
@@ -113,5 +113,5 @@ kubectl attach -n airflow job/airflow-base-build
 kubectl delete job -n airflow airflow-base-build
 
 
-echo 'BLAKE ~ stateful Airflow resources provisioned'
+echo 'DaP ~ stateful Airflow resources provisioned'
 

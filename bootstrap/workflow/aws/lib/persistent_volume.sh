@@ -23,7 +23,7 @@ persistent_volume () {
     
     elif [ $volume_count -gt 1 ]; then
     
-        echo "BLAKE ~ expected less than 2 ebs volumes named $volume" >&2
+        echo "DaP ~ expected less than 2 ebs volumes named $volume" >&2
         exit 1
     
     fi

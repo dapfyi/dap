@@ -2,7 +2,7 @@
 
 if [ -z $AWS_PROFILE ]; then
 
-    echo "BLAKE ~ AWS_PROFILE not set: workflow to authenticate with [default] AWS profile."
+    echo "DaP ~ AWS_PROFILE not set: workflow to authenticate with [default] AWS profile."
 
     if ! grep -q '\[default\]' ~/.aws/config; then
         printf "\nA [default] profile must be configured in ~/.aws/config.\n"
@@ -14,7 +14,7 @@ if [ -z $AWS_PROFILE ]; then
 
 else
 
-    echo "BLAKE ~ AWS_PROFILE set: workflow to authenticate with [$AWS_PROFILE] AWS profile."
+    echo "DaP ~ AWS_PROFILE set: workflow to authenticate with [$AWS_PROFILE] AWS profile."
 
 fi
 

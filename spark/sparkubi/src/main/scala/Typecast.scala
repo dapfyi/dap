@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import java.math.{BigInteger, MathContext}
 
@@ -31,7 +31,7 @@ object Typecast {
     val doublePattern = s"""^(${integer}\\.?\\d*E${integer})$$""".r
 
     // Spark code generation pointer
-    val S2FName = "d3centr.sparkubi.Typecast.stringToFraction"
+    val S2FName = "fyi.dap.sparkubi.Typecast.stringToFraction"
     implicit def stringToFraction(s: UTF8String): Fraction = 
         if (s == null) null else { 
             val str = s.toString

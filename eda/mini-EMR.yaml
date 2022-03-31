@@ -85,16 +85,16 @@ Resources:
               - s3:ListMultipartUploadParts
               - s3:ListBucketMultipartUploads
             Resource:
-              - !Sub arn:aws:s3:::*-blake-${AWS::Region}-data-${AWS::AccountId}
-              - !Sub arn:aws:s3:::*-blake-${AWS::Region}-data-${AWS::AccountId}/*
+              - !Sub arn:aws:s3:::*-dap-${AWS::Region}-data-${AWS::AccountId}
+              - !Sub arn:aws:s3:::*-dap-${AWS::Region}-data-${AWS::AccountId}/*
               - Fn::Join:
                 - ''
                 - - 'arn:aws:s3:::'
-                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+                  - Fn::ImportValue: !Sub ${Name}-DaPEDASinkBucket
               - Fn::Join:
                 - ''
                 - - 'arn:aws:s3:::'
-                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+                  - Fn::ImportValue: !Sub ${Name}-DaPEDASinkBucket
                   - /*
               - Fn::Join:
                 - ''
@@ -115,7 +115,7 @@ Resources:
               - Fn::Join:
                 - ''
                 - - 'arn:aws:s3:::'
-                  - Fn::ImportValue: !Sub ${Name}-BlakeEDASinkBucket
+                  - Fn::ImportValue: !Sub ${Name}-DaPEDASinkBucket
                   - /*
               - Fn::Join:
                 - ''

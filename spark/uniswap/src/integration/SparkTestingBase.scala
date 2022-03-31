@@ -2,7 +2,7 @@
   - with scalatest dependency removed -
   script is meant to be loaded in the spark-shell of a production-like environment */
 
-// :load blake/spark/uniswap/src/integration/SparkTestingBase.scala
+// :load dap/spark/uniswap/src/integration/SparkTestingBase.scala
 
 import java.sql.Timestamp
 

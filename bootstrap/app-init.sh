@@ -1,29 +1,34 @@
 #!/bin/bash
 set -euo pipefail
+source ../DaP/load_ENV.sh
 
-REPO=https://github.com/d3centr/blake.git
-BRANCH=`git symbolic-ref HEAD --short`
-
-authenticate_with_last_cluster_created () {
-    local clusters=`aws eks list-clusters --query clusters --output text --no-paginate | \
-        egrep -o '(blue|green)-blake'`
-
-    local creation_times=`for cluster in $clusters; do
-        aws eks describe-cluster --name $cluster --query cluster.[name,createdAt] --output text; done`
-
-    local last_cluster_created=`echo "$creation_times" | sort -V | tail -1 | cut -f1`
-
-    aws eks update-kubeconfig --name $last_cluster_created
+env_branch () { 
+    local branch=`env_path DaP/$DaP_ENV/BRANCH`
+    [ $branch = _local ] && git symbolic-ref HEAD --short || echo $branch
 }
+: ${DaP_REPO:=`env_path DaP/$DaP_ENV/REPO`}
+: ${DaP_SYNC:=`env_path DaP/$DaP_ENV/SYNC`}
+: ${DaP_BRANCH:=`env_branch`}
 
-# When both blue and green-blake run, the first cluster created is immutable. No reason to touch it.
-authenticate_with_last_cluster_created
+# When both blue and green-dap run, the first cluster created is immutable. No reason to touch it.
+root=`git rev-parse --show-toplevel`
+$root/bootstrap/workflow/aws/lib/authenticate_with_last_cluster_created.sh
 read REGION ACCOUNT CLUSTER <<< `kubectl config current-context | awk -F'[:/]' '{print $4,$5,$NF}'`
 REGISTRY=$ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$CLUSTER
 
 export ARGOCD_OPTS='--port-forward-namespace argocd'
 # export variable referenced in envsubst pipes
-export REGION=$REGION
+export REGION
 # prevent pre-install scripts from getting stuck on pagination in small terminal windows
 export AWS_PAGER=
+
+printf "\n        - Defined -\n"
+echo "DaP_ENV    = $DaP_ENV"
+echo "DaP_REPO   = $DaP_REPO"
+echo "DaP_SYNC   = $DaP_SYNC"
+echo "DaP_BRANCH = $DaP_BRANCH"
+echo "CLUSTER    = $CLUSTER"
+printf "\n        - Exported -\n"
+echo "REGION     = $REGION"
+echo ""
 

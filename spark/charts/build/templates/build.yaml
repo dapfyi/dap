@@ -23,6 +23,10 @@ spec:
         envFrom:
         - configMapRef:
             name: env
+        resources:
+          requests:
+            cpu: 1800m
+            memory: 2900Mi
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt
@@ -52,7 +56,7 @@ data:
 
     ARG KUBECTL_VERSION
     ARG URL=https://repo1.maven.org/maven2
-    RUN source /root/.sdkman/bin/sdkman-init.sh && cd blake/spark && \
+    RUN source /root/.sdkman/bin/sdkman-init.sh && cd dap/spark && \
         sdk install sbt `awk '$3=="sbtVersion" && $4==":=" {print $5}' build.sbt | tr -d '"'` && \
         ln -s /opt/spark/jars lib && \
 
@@ -101,6 +105,10 @@ spec:
         args:
         - "--context=/mnt"
         - "--destination={{ .Values.global.registry }}:{{ .Values.tag }}"
+        resources:
+          requests:
+            cpu: 1200m
+            memory: 1800Mi
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt
@@ -121,9 +129,9 @@ data:
   Dockerfile: |
     FROM {{ .Values.global.registry }}:{{ .Values.tag }}-builder AS build
 
-    RUN cd blake/spark && git pull && \
+    RUN cd dap/spark && git pull && \
         source /root/.sdkman/bin/sdkman-init.sh && sbt {{ .Release.Name }}/package
 
     FROM {{ .Values.global.registry }}:dep
-    COPY --from=build /opt/spark/work-dir/blake/spark/{{ .Release.Name }}/target/scala-{{ .Values.scalaVersion }}/*.jar /opt/spark/jars/
+    COPY --from=build /opt/spark/work-dir/dap/spark/{{ .Release.Name }}/target/scala-{{ .Values.scalaVersion }}/*.jar /opt/spark/jars/
 

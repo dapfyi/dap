@@ -28,7 +28,7 @@ set -- ${args[@]}
 
 app=${1///}
 source $app/config/$config
-shell_jars="/opt/spark/work-dir/blake/spark/$app/target/scala-2.12/\*.jar"
+shell_jars="/opt/spark/work-dir/dap/spark/$app/target/scala-2.12/\*.jar"
 
 if [ $2 = shell ]; then
     client=shell
@@ -41,7 +41,7 @@ elif [ $2 = script ]; then
     name=$app-${3/_/-}
     command=shell
     tag=$app-builder
-    load="-i /opt/spark/work-dir/blake/spark/$app/scripts/$3.scala --jars $shell_jars"
+    load="-i /opt/spark/work-dir/dap/spark/$app/scripts/$3.scala --jars $shell_jars"
 elif [ $2 = thrift ]; then
     client=thrift
     name=$app
@@ -58,7 +58,7 @@ else
     elif [[ $2 =~ ^[0-9]{4}(-[0-9]{2}){2}$ ]]; then agg_date=$2; fi
 
     case $class in
-        blake.uniswap.Aggregate)
+        fyi.dap.uniswap.Aggregate)
             name=$app-agg-${agg_date//-}
             RESCALE=true;;
         *) name=$app-$epoch;;
@@ -73,7 +73,7 @@ if [ -f /.dockerenv ]; then
 else
     stdin=true
     echo "/.dockerenv wasn't found: authenticating with k8s outside container"
-    # authenticate with cluster and export REGISTRY variable
+    # authenticate with cluster and declare REGISTRY variable
     source `git rev-parse --show-toplevel`/bootstrap/app-init.sh
 fi
 
@@ -146,10 +146,10 @@ data:
         --conf spark.sql.catalog.spark_catalog=$CATALOG \
         --conf spark.sql.streaming.stateStore.providerClass=$STATE_STORE \
         --conf spark.kubernetes.executor.podTemplateFile=/mnt/pod-template.yaml \
-        --conf spark.sql.extensions=d3centr.sparkubi.Extensions \
+        --conf spark.sql.extensions=fyi.dap.sparkubi.Extensions \
         --conf spark.sql.hive.thriftServer.singleSession=true \
-        --conf spark.driver.blake.epoch=${epoch:-"-1"} \
-        --conf spark.driver.blake.agg.date=${agg_date:-"0000-00-00"} \
+        --conf spark.driver.dap.epoch=${epoch:-"-1"} \
+        --conf spark.driver.dap.agg.date=${agg_date:-"0000-00-00"} \
         /opt/spark/jars/$app.jar
 
   pod-template.yaml: |

@@ -1,7 +1,7 @@
 #!/bin/bash
 source ../bootstrap/app-init.sh
 
-echo 'BLAKE ~ running monitor pre-install'
+echo 'DaP ~ running monitor pre-install'
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -15,5 +15,5 @@ kubectl apply view-last-applied configmap -n default env -o yaml | \
     sed 's/namespace: default/namespace: monitor/' | \
     kubectl apply -f -
 
-echo 'BLAKE ~ stateful monitor resources provisioned'
+echo 'DaP ~ stateful monitor resources provisioned'
 

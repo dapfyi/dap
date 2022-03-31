@@ -20,13 +20,13 @@ def addPartitions(table: String, tomorrow: Date) = {
 
 try {
 
-    println("BLAKE ~ uniswap partition updates")
+    println("DaP ~ uniswap partition updates")
     val tomorrow = sql("SELECT date_add(CURRENT_DATE, 1)").first.getDate(0)
 
     addPartitions("uniswap.rated_swaps", tomorrow)
     addPartitions("uniswap.day_swaps", tomorrow)
     
-    println("BLAKE ~ uniswap partitions updated")
+    println("DaP ~ uniswap partitions updated")
     System.exit(0)
 
 } catch {

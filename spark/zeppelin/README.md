@@ -1,4 +1,4 @@
-_Apache Zeppelin on Blake clusters is an aborted experiment unless the project upgrades to Java 11._
+_Apache Zeppelin on DaP clusters is an aborted experiment unless the project upgrades to Java 11._
 
 # Test
 - Update `templates/zeppelin-server.yaml`.

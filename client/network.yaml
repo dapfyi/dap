@@ -33,12 +33,12 @@ Resources:
           Value: !Sub ${AWS::StackName}/SubnetA
         - Key: kubernetes.io/role/elb
           Value: 1
-        - Key: kubernetes.io/cluster/blue-blake
+        - Key: kubernetes.io/cluster/blue-dap
           Value: shared
-        - Key: kubernetes.io/cluster/green-blake
+        - Key: kubernetes.io/cluster/green-dap
           Value: shared
   SubnetB:
-    Description: "eksctl requires 2 subnets, could also be used later on to segregate blue and green Blake"
+    Description: "eksctl requires 2 subnets, could also be used later on to segregate blue and green DaP"
     Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
@@ -50,9 +50,9 @@ Resources:
           Value: !Sub ${AWS::StackName}/SubnetB
         - Key: kubernetes.io/role/elb
           Value: 1
-        - Key: kubernetes.io/cluster/blue-blake
+        - Key: kubernetes.io/cluster/blue-dap
           Value: shared
-        - Key: kubernetes.io/cluster/green-blake
+        - Key: kubernetes.io/cluster/green-dap
           Value: shared
   RouteTable:
     Type: AWS::EC2::RouteTable
@@ -136,9 +136,9 @@ Resources:
     Type: AWS::EC2::NetworkInterface
     Properties:
       Tags:
-        # tag authorizing ec2:AttachNetworkInterface in blake-geth stack
+        # tag authorizing ec2:AttachNetworkInterface in dap-geth stack
         - Key: Name
-          Value: blake-geth
+          Value: dap-geth
       GroupSet:
         - !GetAtt HttpSG.GroupId
         - !GetAtt WebSocketSG.GroupId

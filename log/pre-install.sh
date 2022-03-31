@@ -1,7 +1,7 @@
 #!/bin/bash
 source ../bootstrap/app-init.sh
 
-echo 'BLAKE ~ running Fluent Bit pre-install'
+echo 'DaP ~ running Fluent Bit pre-install'
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -36,5 +36,5 @@ cat <<EOF | aws s3api put-bucket-lifecycle-configuration \
 }
 EOF
 
-echo 'BLAKE ~ stateful Fluent Bit resources provisioned'
+echo 'DaP ~ stateful Fluent Bit resources provisioned'
 

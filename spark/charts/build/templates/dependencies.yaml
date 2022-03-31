@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: dependencies
+  name: {{ .Release.Name }}-dependencies
   annotations:
     argocd.argoproj.io/hook: {{ .Values.depBuild }}
     helm.sh/hook-weight: "-100"
@@ -19,6 +19,10 @@ spec:
         args:
         - "--context=/mnt"
         - "--destination={{ .Values.global.registry }}:dep"
+        resources:
+          requests:
+            cpu: 420m
+            memory: 2Gi
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt
@@ -46,10 +50,10 @@ data:
     ADD $MVN/org/apache/hadoop/hadoop-aws/{{ .Values.hadoopVersion }}/hadoop-aws-{{ .Values.hadoopVersion }}.jar $DEST
     ADD $MVN/com/amazonaws/aws-java-sdk-bundle/{{ .Values.awsSdkVersion }}/aws-java-sdk-bundle-{{ .Values.awsSdkVersion }}.jar $DEST
 
-    # Delta
+    # Delta: see https://docs.delta.io/latest/releases.html for Spark version compatibility
     ADD $MVN/io/delta/delta-core_2.12/1.1.0/delta-core_2.12-1.1.0.jar $DEST
 
-    # Delta Compile Dependencies
+    # Delta Compile Dependencies: should not be required, test next upgrade.
     ADD $MVN/org/codehaus/jackson/jackson-core-asl/1.9.13/jackson-core-asl-1.9.13.jar $DEST
     # skipping antlr4-runtime-4.8: already available in Spark distribution
 

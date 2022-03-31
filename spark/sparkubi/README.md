@@ -3,7 +3,7 @@ A Spark extension to process blockchain integers with arbitrary precision.
 
 With SparkUBI, you can transform your cluster into a precise off-chain computation engine leveraging the power of Apache Spark.
 
-[[Features](#features)] [[Installation](#installation)] [[Key Concepts](#key-concepts)] [[Spark SQL API](#spark-sql-api)] [[Optimization](#optimization-highlights)] [[Configuration](#configuration)]
+[ [Features](#features) ] [ [Installation](#installation) ] [ [Key Concepts](#key-concepts) ] [ [Spark SQL API](#spark-sql-api) ] [ [Optimization](#optimization-highlights) ] [ [Configuration](#configuration) ]
 ## Features
 - a Spark SQL interface for calculation and aggregation on integers that can't fit in a native type
 - resolution safety: constant unit in the last place (ulp) through fixed-point arithmetic 
@@ -18,11 +18,11 @@ With SparkUBI, you can transform your cluster into a precise off-chain computati
 ## Installation
 Build SparkUBI, make the jar available to your cluster and register it as a Spark extension with the following property: 
 
-`spark.sql.extensions=d3centr.sparkubi.Extensions` 
+`spark.sql.extensions=fyi.dap.sparkubi.Extensions` 
 
 The same class can also be called to dynamically load SparkUBI in a session builder: 
 
-`SparkSession.withExtensions(new d3centr.sparkubi.Extensions)`
+`SparkSession.withExtensions(new fyi.dap.sparkubi.Extensions)`
 ## Key Concepts
 ### Basic Arithmetic Plan
 ```
@@ -68,7 +68,7 @@ SQL functions with Scala bindings are called on dataframes for ease of use and e
 They take `org.apache.spark.sql.Column` arguments of `StringType` and also return a `StringType`. Input strings should represent either a usual number format like 1, 1.0, 8.24E-4, or a fraction as described in [Key Concepts](#fractions). 
 > When passing fractions to SparkUBI functions: bits, scale and denominator can be omitted. Default values will imply integers aren't binary encoded, a 0 scale or a 1 denominator.
 
-In Scala, import `d3centr.sparkubi.functions._` to access SparkUBI functions outside SQL expressions.
+In Scala, import `fyi.dap.sparkubi.functions._` to access SparkUBI functions outside SQL expressions.
 - Exact __arithmetic__ functions between 2 fractions: `ubim` multiplication, `ubid` division, `ubia` addition and `ubis` subtraction. 
 - __Aggregate__ functions with fraction buffer `ubi_min`, `ubi_max`, `ubi_sum` and `ubi_avg` can be called along Spark defaults.
 - Potentially __lossy__ `ubi_resolve` translates a UBI number into a BigDecimal string. Cast its output to your numeric type of choice.
@@ -112,7 +112,7 @@ The query execution plan shows it's been split in 2 physical operators sharing t
 `df.explain("codegen")` shows the optimized Java code, commented extract from generated `processNext()` function below:
 ```
    ...       // string input instantiates a Fraction argument for the sign method in SparkUBI Unary object 
-/* 102 */    filter_value_1 = d3centr.sparkubi.Unary.sign(d3centr.sparkubi.Typecast.stringToFraction(filter_value_2));
+/* 102 */    filter_value_1 = fyi.dap.sparkubi.Unary.sign(fyi.dap.sparkubi.Typecast.stringToFraction(filter_value_2));
 /* 103 */
 /* 104 */    boolean filter_value_0 = false;
 /* 105 */    filter_value_0 = filter_value_1 == 0;  // filter condition specified in query is tested

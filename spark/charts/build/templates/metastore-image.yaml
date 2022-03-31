@@ -19,6 +19,10 @@ spec:
         args:
         - "--context=/mnt"
         - "--destination={{ .Values.global.registry }}:metastore"
+        resources:
+          requests:
+            cpu: 800m
+            memory: 5Gi
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt

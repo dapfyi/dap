@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import org.apache.spark.sql.{SparkSessionExtensions, SparkSessionExtensionsProvider}
 

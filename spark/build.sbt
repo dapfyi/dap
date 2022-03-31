@@ -50,6 +50,6 @@ lazy val uniswap = project
         Test / envVars := Map(
             "DATA_BUCKET" -> "dummy", 
             "DELTA_BUCKET" -> "dummy"),
-        Test / javaOptions ++= Seq("-Dspark.driver.blake.epoch=0")
+        Test / javaOptions ++= Seq("-Dspark.driver.dap.epoch=0")
     )
 

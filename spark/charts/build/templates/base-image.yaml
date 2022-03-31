@@ -19,6 +19,10 @@ spec:
         args:
         - "--context=/mnt"
         - "--destination={{ .Values.global.registry }}:base"
+        resources:
+          requests:
+            cpu: 1800m
+            memory: 6Gi
         volumeMounts:
         - name: dockerfile
           mountPath: /mnt
@@ -47,7 +51,7 @@ data:
         tar xzvf $path.tar.gz -C /tmp
 
     RUN export MAVEN_OPTS="-Xss64m -Xmx2g -XX:ReservedCodeCacheSize=1g" && \
-        $path/dev/make-distribution.sh --name blake-dist \
+        $path/dev/make-distribution.sh --name dap-dist \
             -Phive \
             -Phive-thriftserver \
             -Pkubernetes

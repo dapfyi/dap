@@ -2,10 +2,10 @@
 
 cluster=$1
 if [ -z $cluster ]; then
-    echo 'Cluster name argument is missing, e.g. run `./cleanup.sh {blue|green}-blake`.'
+    echo 'Cluster name argument is missing, e.g. run `./cleanup.sh {blue|green}-dap`.'
     exit 1
 fi
-echo "BLAKE ~ deleting stateful Spark resources tied to $cluster cluster"
+echo "DaP ~ deleting stateful Spark resources tied to $cluster cluster"
 
 echo "WARNING: historical s3 data and Spark container images will be erased."
 read -p "Are you sure? Type YES to confirm or any character to skip and review next resource: "

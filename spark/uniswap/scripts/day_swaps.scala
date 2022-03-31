@@ -2,7 +2,7 @@ import spark.sql
 
 try {
 
-    println("BLAKE ~ day_swaps Table")
+    println("DaP ~ day_swaps Table")
     /* generate column expression: 
       val agg = spark.read.parquet(s"""s3://${sys.env("DELTA_BUCKET")}/uniswap/agg""")
       println(agg.schema.toDDL)
@@ -75,7 +75,7 @@ try {
         LOCATION 's3a://${sys.env("DELTA_BUCKET")}/uniswap/agg'
     """)
     
-    println("BLAKE ~ MSCK Repair")
+    println("DaP ~ MSCK Repair")
     sql("MSCK REPAIR TABLE uniswap.day_swaps")
 
     System.exit(0)

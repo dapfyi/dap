@@ -1,2 +1,6 @@
+# local override of default variables under DaP
+DaP/**/var
+
 # vim swap file
 *.swp
+

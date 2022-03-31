@@ -1,12 +1,12 @@
 import java.math.{MathContext, RoundingMode, BigInteger}
 import org.apache.spark.sql.functions.expr
-import d3centr.sparkubi.UBI
-import d3centr.sparkubi.Arithmetic.{
+import fyi.dap.sparkubi.UBI
+import fyi.dap.sparkubi.Arithmetic.{
     multiply, commonDNE, scale, operate, commonEncoding}
-import d3centr.sparkubi.Unary.{resolve, decode}
-import d3centr.sparkubi.Fraction
-import d3centr.sparkubi.Conf.MC
-import d3centr.sparkubi.Typecast._
+import fyi.dap.sparkubi.Unary.{resolve, decode}
+import fyi.dap.sparkubi.Fraction
+import fyi.dap.sparkubi.Conf.MC
+import fyi.dap.sparkubi.Typecast._
 
 class PrecisionSuite extends Spark {
 

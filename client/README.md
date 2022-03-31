@@ -1,11 +1,11 @@
-Note: keep the same default aws region configured across Blake modules.
+Note: keep the same default aws region configured across DaP modules.
 
 ### Create Network
-`aws cloudformation create-stack --stack-name blake-network --template-body file://network.yaml`
+`aws cloudformation create-stack --stack-name dap-network --template-body file://network.yaml`
 
 ### Deploy Geth
 ```
-aws cloudformation create-stack --stack-name blake-geth --template-body file://geth.yaml --capabilities CAPABILITY_IAM \
+aws cloudformation create-stack --stack-name dap-geth --template-body file://geth.yaml --capabilities CAPABILITY_IAM \
     --parameters ParameterKey=InstanceSize,ParameterValue=xlarge
 ```
 

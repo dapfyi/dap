@@ -26,30 +26,30 @@ else
     exit 1
 fi
 
-echo "BLAKE ~ installing $BRANCH branch $app in $CLUSTER $namespace namespace"
+echo "DaP ~ installing $DaP_BRANCH branch $app in $CLUSTER $namespace namespace"
 
 p1="global.registry=$REGISTRY/spark"
 p2="build.tag=$tag"
-p3="build.repo=$REPO"
-p4="build.branch=$BRANCH"
+p3="build.repo=$DaP_REPO"
+p4="build.branch=$DaP_BRANCH"
 p5="build.sparkVersion=$SPARK_VERSION"
 p6="postgresql.persistence.existingClaim=$PG_VOLUME"
 
 argocd app create $app \
-    --repo $REPO \
-    --revision $BRANCH \
+    --repo $DaP_REPO \
+    --revision $DaP_BRANCH \
     --path spark/$app \
     --dest-namespace $namespace \
     --dest-server https://kubernetes.default.svc \
-    --sync-policy auto \
+    --sync-policy $DaP_SYNC \
     --self-heal \
     --auto-prune \
     --config-management-plugin kustomized-helm \
-    --plugin-env PLUGIN_ENV=$p1,$p2,$p3,$p4,$p5,$p5,$p6 \
     --plugin-env HELM_VALUES="
         ../charts/profile/default.yaml 
         ../charts/profile/$profile.yaml 
-        values.yaml"
+        values.yaml" \
+    --plugin-env DYNAMIC_VAR=$p1,$p2,$p3,$p4,$p5,$p6
 
-# --set $PLUGIN_ENV added to helm plugin command in argocd-cm, similarly for ordered $HELM_VALUES
+# --set $DYNAMIC_VAR added to helm plugin command in argocd-cm, similarly for ordered $HELM_VALUES
 

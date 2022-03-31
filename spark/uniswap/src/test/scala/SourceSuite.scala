@@ -1,7 +1,7 @@
 import org.scalatest.FunSuite
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.functions._
-import blake.uniswap.Source.{deserialize_json, swapArgsJsonSchema}
+import fyi.dap.uniswap.Source.{deserialize_json, swapArgsJsonSchema}
 
 class SourceSuite extends FunSuite with TestingBase {
 

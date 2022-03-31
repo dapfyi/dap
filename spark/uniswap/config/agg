@@ -1,5 +1,5 @@
 
-class=blake.uniswap.Aggregate
+class=fyi.dap.uniswap.Aggregate
 
 EXE_MEM=12g
 EXE_COR=2

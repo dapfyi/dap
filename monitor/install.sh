@@ -5,12 +5,12 @@ ETH_IP=`kubectl apply view-last-applied cm -n monitor env |
     awk '$1~/ETHEREUM_IP/{print $NF}'`
 
 argocd app create monitor \
-    --repo $REPO \
-    --revision $BRANCH \
+    --repo $DaP_REPO \
+    --revision $DaP_BRANCH \
     --path monitor \
     --dest-namespace monitor \
     --dest-server https://kubernetes.default.svc \
-    --sync-policy auto \
+    --sync-policy $DaP_SYNC \
     --self-heal \
     --auto-prune \
     -p ethIp=$ETH_IP \

@@ -43,5 +43,5 @@ data:
             --depth 1 \
             --branch {{ .Values.airflow.dags.gitSync.branch }} \
             {{ .Values.airflow.dags.gitSync.repo }} && \
-        cp -r blake/{{ .Values.airflow.dags.gitSync.subPath }}/* dags
+        cp -r dap/{{ .Values.airflow.dags.gitSync.subPath }}/* dags
 

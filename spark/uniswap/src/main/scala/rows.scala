@@ -1,4 +1,4 @@
-package blake.uniswap
+package fyi.dap.uniswap
 
 case class Token(symbol: String, decimals: BigInt, address: String)
 

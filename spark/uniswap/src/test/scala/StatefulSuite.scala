@@ -1,8 +1,8 @@
 import org.scalatest.FunSuite
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.execution.streaming.MemoryStream
-import blake.uniswap.{ExchangeRateRow, Token, Base}
-import blake.uniswap.StatefulStream._
+import fyi.dap.uniswap.{ExchangeRateRow, Token, Base}
+import fyi.dap.uniswap.StatefulStream._
 
 class StatefulSuite extends FunSuite with TestingBase {
 

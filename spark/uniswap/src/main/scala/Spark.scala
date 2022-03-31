@@ -1,4 +1,4 @@
-package blake.uniswap
+package fyi.dap.uniswap
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.SparkConf
@@ -40,8 +40,8 @@ trait Spark extends Serializable {
         config(conf).
         getOrCreate
 
-    lazy val aggDate = spark.conf.get("spark.driver.blake.agg.date")
-    lazy val epoch = spark.conf.get("spark.driver.blake.epoch").toInt
+    lazy val aggDate = spark.conf.get("spark.driver.dap.agg.date")
+    lazy val epoch = spark.conf.get("spark.driver.dap.epoch").toInt
     lazy val isLiveStreaming = epoch == -1
 
 }

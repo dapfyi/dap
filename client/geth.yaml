@@ -64,18 +64,18 @@ Resources:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - SubnetId: !ImportValue blake-network-subnet-a
+              - SubnetId: !ImportValue dap-network-subnet-a
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - SubnetId: !ImportValue blake-network-subnet-a
+              - SubnetId: !ImportValue dap-network-subnet-a
                 InstanceType: !Join ['', [m5d., !Ref InstanceSize]]
           - LaunchTemplateSpecification:
               LaunchTemplateId: !Ref LaunchTemplate
               Version: !GetAtt LaunchTemplate.LatestVersionNumber
             Overrides:
-              - SubnetId: !ImportValue blake-network-subnet-a
+              - SubnetId: !ImportValue dap-network-subnet-a
                 InstanceType: !Join ['', [m5n., !Ref InstanceSize]]
   InstanceRole:
     Type: AWS::IAM::Role
@@ -153,8 +153,8 @@ Resources:
         ImageId: !Ref Image
         InstanceType: !Join ['', [m5., !Ref InstanceSize]]
         SecurityGroupIds:
-          - !ImportValue blake-network-listener-sg
-          - !ImportValue blake-network-discovery-sg
+          - !ImportValue dap-network-listener-sg
+          - !ImportValue dap-network-discovery-sg
         TagSpecifications:
           - ResourceType: instance
             Tags:
@@ -209,7 +209,8 @@ Resources:
                     [ $attachment_id = None ]
                 }
                 until detached_interface; do sleep 1; done
-                aws ec2 attach-network-interface --device-index 1 --instance-id $instance_id \
+                # device index 2 safer than 1
+                aws ec2 attach-network-interface --device-index 2 --instance-id $instance_id \
                     --network-interface-id $ENI
 
               mode: "000755"
@@ -305,7 +306,7 @@ Resources:
               env:
                 AWS_DEFAULT_REGION: !Ref "AWS::Region"
                 EIP: !GetAtt EIP.AllocationId
-                ENI: !ImportValue blake-network-eth-eni
+                ENI: !ImportValue dap-network-eth-eni
             01_mount_volumes:
               command: "/tmp/bootstrap/mount-volumes.sh"
               env:

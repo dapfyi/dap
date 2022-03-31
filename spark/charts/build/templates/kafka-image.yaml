@@ -39,15 +39,15 @@ data:
   Dockerfile: |
     FROM openjdk:11-jre-slim
 
-    ARG KAFKA_VERSION=3.0.0
+    ARG KAFKA_VERSION=3.2.0
     ARG KAFKA_RELEASE=kafka_2.13-$KAFKA_VERSION
     ARG URL=https://dlcdn.apache.org/kafka/$KAFKA_VERSION/$KAFKA_RELEASE.tgz
 
     RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/* && \
-        mkdir /opt/blake && curl -O $URL && tar -xzf $KAFKA_RELEASE.tgz -C /opt/blake && \
+        mkdir /opt/dap && curl -O $URL && tar -xzf $KAFKA_RELEASE.tgz -C /opt/dap && \
         rm $KAFKA_RELEASE.tgz && apt-get autoremove -y curl
     
-    WORKDIR /opt/blake/$KAFKA_RELEASE
+    WORKDIR /opt/dap/$KAFKA_RELEASE
     ENTRYPOINT ["bash", "-c"]
 {{ end }}
 

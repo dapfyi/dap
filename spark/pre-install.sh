@@ -1,7 +1,7 @@
 #!/bin/bash
 source init.sh
 
-echo 'BLAKE ~ running Spark pre-install'
+echo 'DaP ~ running Spark pre-install'
 
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
@@ -72,5 +72,5 @@ source ../bootstrap/workflow/aws/lib/persistent_volume.sh
 persistent_volume $PG_VOLUME 8 spark
 
 
-echo 'BLAKE ~ stateful Spark resources provisioned'
+echo 'DaP ~ stateful Spark resources provisioned'
 

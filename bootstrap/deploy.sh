@@ -4,11 +4,11 @@ lib_path=workflow/aws/lib
 source $lib_path/profile-configuration.sh
 source $lib_path/runtime.sh
 
-echo "BLAKE ~ building bootstrap environment"
-docker build -t blake-bootstrap .
+echo "DaP ~ building bootstrap environment"
+docker build -t dap-bootstrap .
 
-echo "BLAKE ~ running deployment workflow"
-run_workflow blake-bootstrap blue-green-deployment.sh
+echo "DaP ~ running deployment workflow"
+run_workflow dap-bootstrap aws/blue-green-deployment.sh
 
-echo "BLAKE ~ deployment exit code: $?"
+echo "DaP ~ deployment exit code: $?"
 

@@ -2,10 +2,10 @@ import spark.sql
 
 try {
 
-    println("BLAKE ~ Uniswap Database")
+    println("DaP ~ Uniswap Database")
     sql("CREATE DATABASE IF NOT EXISTS uniswap")
     
-    println("BLAKE ~ rated_swaps Table")
+    println("DaP ~ rated_swaps Table")
     sql(s"""CREATE TABLE IF NOT EXISTS uniswap.rated_swaps(
         `address` STRING,
         `blockNumber` BIGINT,
@@ -77,7 +77,7 @@ try {
         LOCATION 's3a://${sys.env("DELTA_BUCKET")}/uniswap/rswaps'
     """)
     
-    println("BLAKE ~ MSCK Repair")
+    println("DaP ~ MSCK Repair")
     sql("MSCK REPAIR TABLE uniswap.rated_swaps")
 
     System.exit(0)

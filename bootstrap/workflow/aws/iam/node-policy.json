@@ -7,8 +7,8 @@
                 "s3:GetObject"
             ],
             "Resource": [
-                "arn:aws:s3:::*-blake-$REGION-*-$ACCOUNT",
-                "arn:aws:s3:::*-blake-$REGION-*-$ACCOUNT/*"
+                "arn:aws:s3:::*-dap-$REGION-*-$ACCOUNT",
+                "arn:aws:s3:::*-dap-$REGION-*-$ACCOUNT/*"
             ],
             "Effect": "Allow"
         },
@@ -22,8 +22,8 @@
                 "s3:PutObject"
             ],
             "Resource": [
-                "arn:aws:ecr:$REGION:$ACCOUNT:repository/$new-blake/*",
-                "arn:aws:s3:::$new-blake-$REGION-*-$ACCOUNT/*"
+                "arn:aws:ecr:$REGION:$ACCOUNT:repository/$new-dap/*",
+                "arn:aws:s3:::$new-dap-$REGION-*-$ACCOUNT/*"
             ],
             "Effect": "Allow"
         }

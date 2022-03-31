@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import java.math.BigInteger.ONE
 import java.lang.ArithmeticException

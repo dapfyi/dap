@@ -22,7 +22,7 @@ spec:
       - name: $app-sbt
         image: $REGISTRY/spark:$app-builder
         imagePullPolicy: Always
-        workingDir: /opt/spark/work-dir/blake/spark 
+        workingDir: /opt/spark/work-dir/dap/spark 
         args:
         - /root/.sdkman/candidates/sbt/current/bin/sbt
         stdin: true

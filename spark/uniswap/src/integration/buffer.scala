@@ -1,6 +1,6 @@
-// `:load blake/spark/uniswap/src/integration/buffer.scala` to run in shell
+// `:load dap/spark/uniswap/src/integration/buffer.scala` to run in shell
 
-import blake.uniswap.BufferIO
+import fyi.dap.uniswap.BufferIO
 import SparkTestingBase._
 
 def bufferTest = {

@@ -1,4 +1,4 @@
-package d3centr.sparkubi
+package fyi.dap.sparkubi
 
 import Conf.Profiling
 import org.apache.log4j.Logger

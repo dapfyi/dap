@@ -16,7 +16,7 @@ spec:
         # kubectl available in sparkubi-builder to attach master
         image: {{ .Values.global.registry }}:sparkubi-builder
         imagePullPolicy: Always
-        workingDir: /opt/spark/work-dir/blake/spark 
+        workingDir: /opt/spark/work-dir/dap/spark 
         # pass REGISTRY environment variable to submit script
         envFrom:
         - configMapRef:
@@ -43,7 +43,7 @@ spec:
           - name: {{ .Release.Name }}-partition-updates
             image: {{ .Values.global.registry }}:sparkubi-builder
             imagePullPolicy: Always
-            workingDir: /opt/spark/work-dir/blake/spark 
+            workingDir: /opt/spark/work-dir/dap/spark 
             envFrom:
             - configMapRef:
                 name: env

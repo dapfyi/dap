@@ -1,6 +1,6 @@
 import com.holdenkarau.spark.testing.DataFrameSuiteBase
 import org.apache.spark.SparkConf
-import blake.uniswap.Compute.settings
+import fyi.dap.uniswap.Compute.settings
 import org.scalatest.FunSuite
 
 trait SparkConfOverride extends FunSuite with DataFrameSuiteBase {

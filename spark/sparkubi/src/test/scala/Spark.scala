@@ -1,6 +1,6 @@
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{FunSuite, BeforeAndAfterAll}
-import d3centr.sparkubi.Extensions
+import fyi.dap.sparkubi.Extensions
 
 trait Spark extends FunSuite with BeforeAndAfterAll {
 

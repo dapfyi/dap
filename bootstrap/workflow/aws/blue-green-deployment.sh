@@ -2,14 +2,14 @@
 set -euo pipefail
 source aws/lib/env.sh
 
-ETHEREUM_CLIENT=blake-geth
+ETHEREUM_CLIENT=dap-geth
 
 ETHEREUM_IP=`aws cloudformation list-exports \
-    --query "Exports[?Name=='blake-network-eth-ip'].Value" \
+    --query "Exports[?Name=='dap-network-eth-ip'].Value" \
     --output text`
 
 subnets=`aws cloudformation list-exports \
-    --query "Exports[?starts_with(Name, 'blake-network-subnet-')].[Name,Value]" \
+    --query "Exports[?starts_with(Name, 'dap-network-subnet-')].[Name,Value]" \
     --output text`
 subnet_a=`echo "$subnets" | awk '$1~/subnet-a$/{print $2}'`
 subnet_b=`echo "$subnets" | awk '$1~/subnet-b$/{print $2}'`
@@ -20,44 +20,44 @@ clusters=`eksctl get cluster`
 
 if echo $clusters | egrep -q 'No clusters? found'; then
 
-    echo "BLAKE ~ no cluster found"
+    echo "DaP ~ no cluster found"
     old=none
     export new=blue
     other=green
 
-elif [ `echo "$clusters" | egrep 'blue-blake|green-blake' | wc -l` -gt 1 ]; then
+elif [ `echo "$clusters" | egrep 'blue-dap|green-dap' | wc -l` -gt 1 ]; then
 
-    echo 'BLAKE ~ Skipping cluster creation: found more than a running colored cluster in region.'
+    echo 'DaP ~ Skipping cluster creation: found more than a running colored cluster in region.'
     exit 1
 
-elif echo $clusters | grep -q blue-blake; then
+elif echo $clusters | grep -q blue-dap; then
 
-    echo "BLAKE ~ blue cluster found"
+    echo "DaP ~ blue cluster found"
     old=blue
     export new=green
     other=$old
 
-elif echo $clusters | grep -q green-blake; then
+elif echo $clusters | grep -q green-dap; then
 
-    echo "BLAKE ~ green cluster found"
+    echo "DaP ~ green cluster found"
     old=green
     export new=blue
     other=$old
 
 elif [ -z $new ]; then
 
-    echo "BLAKE ~ Issue encountered determining new cluster color: debug if statements in $0."
+    echo "DaP ~ Issue encountered determining new cluster color: debug if statements in $0."
     exit 1
 
 fi
 
 
 ## Create Kubernetes cluster.
-echo "BLAKE ~ creating $new cluster"
+echo "DaP ~ creating $new cluster"
 
 # Variables interpolated by envsubst in json policy must be exported beforehand, e.g. export new=color. 
 envsubst < aws/iam/node-policy.json | 
-    aws iam create-policy --policy-name $new-blake-node --policy-document file:///dev/stdin
+    aws iam create-policy --policy-name $new-dap-node --policy-document file:///dev/stdin
 
 policies="
 
@@ -66,7 +66,7 @@ policies="
         - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
         - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
         - arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess
-        - arn:aws:iam::$ACCOUNT:policy/$new-blake-node
+        - arn:aws:iam::$ACCOUNT:policy/$new-dap-node
       withAddonPolicies:
         autoScaler: true
 
@@ -77,7 +77,7 @@ cluster_definition="
   apiVersion: eksctl.io/v1alpha5
   kind: ClusterConfig  
   metadata:
-    name: $new-blake
+    name: $new-dap
     region: $REGION
   iam:
     withOIDC: true
@@ -143,7 +143,7 @@ cluster_definition="
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin --dry-run
 echo "$cluster_definition" | eksctl create cluster -f /dev/stdin
 
-echo "BLAKE ~ tag propagation to autoscaling groups"
+echo "DaP ~ tag propagation to autoscaling groups"
 # required to scale from 0, could be automatically handled by AWS at some point
 # keep track of feature in parity with unmanaged nodegroups
 # https://eksctl.io/usage/eks-managed-nodes/#feature-parity-with-unmanaged-nodegroups
@@ -151,15 +151,15 @@ echo "BLAKE ~ tag propagation to autoscaling groups"
 asg_propagation_tags="
     k8s.io/cluster-autoscaler/node-template/resources/ephemeral-storage
 "
-nodegroups=`aws eks list-nodegroups --cluster-name $new-blake --no-paginate \
+nodegroups=`aws eks list-nodegroups --cluster-name $new-dap --no-paginate \
     --query nodegroups --output text`
 
 for ng in $nodegroups; do
 
-    asg=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
+    asg=`aws eks describe-nodegroup --cluster-name $new-dap --nodegroup-name $ng \
         --query nodegroup.resources.autoScalingGroups --output text`
 
-    ng_tags=`aws eks describe-nodegroup --cluster-name $new-blake --nodegroup-name $ng \
+    ng_tags=`aws eks describe-nodegroup --cluster-name $new-dap --nodegroup-name $ng \
         --query nodegroup.tags --output table | tr -d ' '`
 
     for tag in $asg_propagation_tags; do
@@ -181,28 +181,28 @@ data:
   ETHEREUM_CLIENT: $ETHEREUM_CLIENT
   ETHEREUM_IP: $ETHEREUM_IP
   SUBNET_A: $subnet_a
-  REGISTRY: $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$new-blake
+  REGISTRY: $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$new-dap
   KUBECTL_VERSION: $KUBECTL_VERSION
-  LOG_BUCKET: $new-blake-$REGION-log-$ACCOUNT
-  DATA_BUCKET: $new-blake-$REGION-data-$ACCOUNT
-  OTHER_DATA_BUCKET: $other-blake-$REGION-data-$ACCOUNT
-  DELTA_BUCKET: $new-blake-$REGION-delta-$ACCOUNT
-  OTHER_DELTA_BUCKET: $other-blake-$REGION-delta-$ACCOUNT
+  LOG_BUCKET: $new-dap-$REGION-log-$ACCOUNT
+  DATA_BUCKET: $new-dap-$REGION-data-$ACCOUNT
+  OTHER_DATA_BUCKET: $other-dap-$REGION-data-$ACCOUNT
+  DELTA_BUCKET: $new-dap-$REGION-delta-$ACCOUNT
+  OTHER_DELTA_BUCKET: $other-dap-$REGION-delta-$ACCOUNT
 EOF
 
 
 ## Deploy cluster autoscaler.
-echo "BLAKE ~ autoscaler deployment"
+echo "DaP ~ autoscaler deployment"
 
 aws iam create-policy \
-    --policy-name $new-blake-cluster-autoscaler \
+    --policy-name $new-dap-cluster-autoscaler \
     --policy-document file://aws/iam/cluster-autoscaler-policy.json
 
 eksctl create iamserviceaccount \
-    --cluster=$new-blake \
+    --cluster=$new-dap \
     --namespace=kube-system \
     --name=cluster-autoscaler \
-    --attach-policy-arn=arn:aws:iam::$ACCOUNT:policy/$new-blake-cluster-autoscaler \
+    --attach-policy-arn=arn:aws:iam::$ACCOUNT:policy/$new-dap-cluster-autoscaler \
     --override-existing-serviceaccounts \
     --approve
 
@@ -215,13 +215,13 @@ autoscaler_version=`curl -s https://api.github.com/repos/kubernetes/autoscaler/t
 # Autoscaler should be part of infrastructure layer for app dependencies on compute capacity.
 helm install \
     --namespace kube-system \
-    --set clusterName=$new-blake,imageVersion=$autoscaler_version \
+    --set clusterName=$new-dap,imageVersion=$autoscaler_version \
     cluster-autoscaler ./aws/helm/cluster-autoscaler
 
 
 ## Deploy metrics server (enables kubectl top command)
 
-echo "BLAKE ~ metrics server deployment"
+echo "DaP ~ metrics server deployment"
 
 # install before last version to avoid the edge case where latest tag release isn't available, yet
 ms_version=`curl -s https://api.github.com/repos/kubernetes-sigs/metrics-server/tags |
@@ -233,50 +233,11 @@ kubectl apply \
 
 
 ## Deploy Argo CD.
-echo "BLAKE ~ Argo CD deployment"
-kubectl create namespace argocd
-
-apply_argo () {
-
-    kubectl apply \
-        -n argocd \
-        -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-}
-
-# Back off and retry in case of failed client connection during large manifest configuration.
-apply_argo || { sleep 5 && apply_argo; }
-
-kubectl patch deploy argocd-server \
-    -n argocd \
-    -p '[{"op": "add", "path": "/spec/template/spec/containers/0/command/-", "value": "--disable-auth"}]' \
-    --type json
-
-cat <<EOF | kubectl patch configmap/argocd-cm -n argocd --type merge --patch-file /dev/stdin
-data:
-  configManagementPlugins: |
-    - name: kustomized-helm
-      init:
-        command: ["/bin/sh", "-c"]
-        args: ["helm dependency build"]
-      generate:
-        command: ["/bin/sh", "-c"]
-        args: ["helm template . --name-template \$ARGOCD_APP_NAME --namespace \$ARGOCD_APP_NAMESPACE \
-            \$(for v in \$HELM_VALUES; do printf -- '--values '\$v' '; done) \
-            --set \$PLUGIN_ENV > all.yaml && kustomize build"]
-EOF
-
-
-## Deploy Argo Workflows.
-echo "BLAKE ~ Argo Workflows deployment"
-
-helm repo add argo https://argoproj.github.io/argo-helm
-helm install --namespace argo --create-namespace \
-    --set server.extraArgs={--auth-mode=server} \
-    --set workflow.serviceAccount.create=true wf argo/argo-workflows
+echo "DaP ~ Argo CD deployment"
+./argo/CD.sh $new
 
 
 ## Delete previous cluster release, if any.
-echo "BLAKE ~ Deleting previous cluster release, if any."
-[ $old = none ] || aws/cleanup.sh $old-blake
+echo "DaP ~ Deleting previous cluster release, if any."
+[ $old = none ] || aws/cleanup.sh $old-dap
 

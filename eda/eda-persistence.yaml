@@ -6,13 +6,13 @@ Resources:
   ZeppelinNoteBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub blake-${AWS::Region}-${Name}-emr-zep-note-${AWS::AccountId}
+      BucketName: !Sub dap-${AWS::Region}-${Name}-emr-zep-note-${AWS::AccountId}
       VersioningConfiguration:
         Status: Enabled
   SinkBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub blake-${AWS::Region}-${Name}-emr-sink-${AWS::AccountId}
+      BucketName: !Sub dap-${AWS::Region}-${Name}-emr-sink-${AWS::AccountId}
 Outputs:
   ZeppelinNoteBucket:
     Value: !Ref ZeppelinNoteBucket
@@ -21,5 +21,5 @@ Outputs:
   SinkBucket:
     Value: !Ref SinkBucket
     Export:
-      Name: !Sub ${Name}-BlakeEDASinkBucket
+      Name: !Sub ${Name}-DaPEDASinkBucket
 
