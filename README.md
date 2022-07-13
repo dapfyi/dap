@@ -6,7 +6,7 @@ _Your launch base to engineer Web3 insights._
 [ [Deployment](#deployment) ]
 
 ## Features
-- __Tokenomics__ provided through built-in Uniswap integration. ([README](./spark/uniswap#dap-tokenomics) for explanation)
+- __Tokenomics__ provided through built-in Uniswap integration. ([what for?](./spark/uniswap#dap-tokenomics))
 - __Embedded Blockchain__ makes DaP self-sufficient.
 - __Data Pipeline__ from ingestion to vizualisation: you develop it, DaP builds and runs it.
 - __SQL Analytics__ powered by [SparkUBI](./spark/sparkubi): precise off-chain calculations at scale on Spark engine.

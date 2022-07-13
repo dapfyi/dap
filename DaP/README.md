@@ -14,8 +14,8 @@ Path | Key | Values | Default | Description
 --- | --- | --- | --- | ---
 / | ENV | `hack`, `demo` or `live` | `live` | configuration is read under the \<ENV> path of this variable
 \<ENV> | BRANCH | remote branch name in REPO or `_local` to check the same branch as local git | `_local` | `argocd app create --revision` argument 
-\<ENV> | REPO | URL of CD origin | `https://github.com/dapfyi/dap.git` | `argocd app create --repo` argument; a private repo requires a private SSH key and has a URL that typically starts with `git@` or `ssh://` rather than `https://`.
+\<ENV> | REPO | URL of CD origin | `https://github.com/dapfyi/dap.git` | `argocd app create --repo` argument; a private repo requires a SSH key and has a URL that typically starts with `git@` or `ssh://` rather than `https://`.
 \<ENV>/REPO/private | PRIVATE | `true` or `false` | `false` | controls the configuration of private repo authentication at cluster bootstrap
-\<ENV>/REPO/private | SSH_KEY_NAME | private key name in local `~/.dap` folder | `id_rsa` | SSH key to authenticate with private repo
+\<ENV>/REPO/private | SSH_KEY_NAME | private key name in local `~/.dap` folder | `deploy_key` | SSH key for read-only access to private repo
 \<ENV> | SYNC | `none` or `auto` | `auto` | `argocd app create --sync-policy` argument 
 

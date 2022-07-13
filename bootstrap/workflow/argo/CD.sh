@@ -11,12 +11,12 @@ aws eks update-kubeconfig --name $color-dap
 kubectl apply -f argo/namespace.yaml
 kubectl apply -k argo
 
-# detect eventual authentication for private repository of applications
+# authenticate private repository, if any
 source ../DaP/load_ENV.sh
 : ${DaP_REPO:=`env_path DaP/$DaP_ENV/REPO`}
 : ${DaP_PRIVATE:=`env_path DaP/$DaP_ENV/REPO/private/PRIVATE`}
 : ${DaP_SSH_KEY_NAME:=`env_path DaP/$DaP_ENV/REPO/private/SSH_KEY_NAME`}
-printf "\nDaP ~ CICD origin $DaP_REPO configured; private? $DaP_PRIVATE.\n\n"
+echo "DaP ~ CICD origin $DaP_REPO configured; private? $DaP_PRIVATE."
 
 [ $DaP_PRIVATE = false ] ||
 cat <<EOF | kubectl apply -f -
@@ -31,6 +31,6 @@ stringData:
   type: git
   url: $DaP_REPO
   sshPrivateKey: |
-    `cat /root/.dap/$DaP_SSH_KEY_NAME`
+`sed 's/^/    /' /root/.dap/$DaP_SSH_KEY_NAME`
 EOF
 
